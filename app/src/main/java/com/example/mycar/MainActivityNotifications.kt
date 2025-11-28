@@ -2,6 +2,7 @@ package com.example.mycar
 
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -10,6 +11,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +65,16 @@ class MainActivityNotifications : AppCompatActivity() {
         recyclerViewInfo = findViewById(R.id.recyclerViewInfo)
 
         setupRecyclerViews()
+        setupStatusBarColors()
+    }
+
+    private fun setupStatusBarColors() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
+        }
     }
 
     private fun setupRecyclerViews() {
