@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.MyCar" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <item name="colorPrimary">@color/my_home_bar_color</item>
+        <item name="colorSecondary">@color/my_home_bar_color</item>
+        <item name="android:statusBarColor">@color/my_status_bar_color</item>
+        <item name="android:navigationBarColor">@color/my_status_bar_color</item>
+    </style>
+
+    <style name="Theme.MyCar" parent="Base.Theme.MyCar" />
+</resources>
