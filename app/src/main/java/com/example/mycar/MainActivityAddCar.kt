@@ -53,7 +53,6 @@ class MainActivityAddCar : AppCompatActivity() {
         private const val TAG = "MainActivityAddCar"
     }
 
-    // Регистрируем контракт для выбора изображения
     private val pickImageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -77,8 +76,6 @@ class MainActivityAddCar : AppCompatActivity() {
         checkEditMode()
         setClickListeners()
         setupStatusBarColors()
-
-        // Загружаем бренды после инициализации
         loadBrandsFromDatabase()
     }
 
@@ -93,11 +90,8 @@ class MainActivityAddCar : AppCompatActivity() {
             carImageView = findViewById(R.id.imageView)
             cancelImageView = findViewById(R.id.imageView2)
             titleTextView = findViewById(R.id.textView2)
-
-            // Настраиваем подсказки
             mileageEditText.hint = "Введите пробег"
 
-            // Изначально делаем спиннер моделей неактивным
             modelSpinner.isEnabled = false
             saveButton.isEnabled = false
 
@@ -116,25 +110,20 @@ class MainActivityAddCar : AppCompatActivity() {
             currentCarId = intent.getIntExtra("car_id", 0)
 
             if (isEditMode) {
-                // Режим редактирования
                 titleTextView.text = "Редактировать"
                 saveButton.text = "Сохранить изменения"
 
-                // Сохраняем оригинальные данные
                 originalBrand = intent.getStringExtra("brand") ?: ""
                 originalModel = intent.getStringExtra("model") ?: ""
                 originalMileage = intent.getIntExtra("mileage", 0)
 
-                // Безопасное получение фото
                 val photoBytesExtra = intent.getByteArrayExtra("photo_bytes")
                 if (photoBytesExtra != null && photoBytesExtra.isNotEmpty()) {
                     photoBytes = photoBytesExtra
                 }
 
-                // Заполняем поля
                 mileageEditText.setText(originalMileage.toString())
 
-                // Устанавливаем фото если есть
                 if (photoBytes != null && photoBytes!!.isNotEmpty()) {
                     try {
                         val bitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes!!.size)
@@ -149,7 +138,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
                 Log.d(TAG, "Edit mode: Brand=$originalBrand, Model=$originalModel, Mileage=$originalMileage")
             } else {
-                // Режим добавления
                 titleTextView.text = "Добавить авто"
                 saveButton.text = "Добавить авто"
                 carImageView.setImageResource(R.drawable.add_photo)
@@ -214,19 +202,16 @@ class MainActivityAddCar : AppCompatActivity() {
             brandAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             brandSpinner.adapter = brandAdapter
 
-            // Если это режим редактирования, выбираем соответствующий бренд
             if (isEditMode && originalBrand.isNotEmpty()) {
                 val brandIndex = brands.indexOfFirst { it.brandName == originalBrand }
                 if (brandIndex != -1) {
                     brandSpinner.setSelection(brandIndex)
                     selectedBrandId = brands[brandIndex].brandId
 
-                    // Загружаем модели для выбранного бренда
                     loadModelsFromDatabase(selectedBrandId)
                     Log.d(TAG, "Brand selected: $originalBrand")
                 } else {
                     Log.w(TAG, "Brand not found: $originalBrand")
-                    // Если бренд не найден, все равно загружаем модели для первого бренда
                     if (brands.isNotEmpty()) {
                         brandSpinner.setSelection(0)
                         selectedBrandId = brands[0].brandId
@@ -234,7 +219,6 @@ class MainActivityAddCar : AppCompatActivity() {
                     }
                 }
             } else if (brands.isNotEmpty()) {
-                // В режиме добавления выбираем первый бренд
                 brandSpinner.setSelection(0)
                 selectedBrandId = brands[0].brandId
                 loadModelsFromDatabase(selectedBrandId)
@@ -258,7 +242,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 models.clear()
 
                 if (connect != null) {
-                    // Используем PreparedStatement для безопасности
                     val query = "EXEC GetCarModelsByBrand ?"
                     val preparedStatement: PreparedStatement = connect.prepareStatement(query)
                     preparedStatement.setInt(1, brandId)
@@ -306,7 +289,6 @@ class MainActivityAddCar : AppCompatActivity() {
             modelSpinner.adapter = modelAdapter
             modelSpinner.isEnabled = true
 
-            // Если это режим редактирования, выбираем соответствующую модель
             if (isEditMode && originalModel.isNotEmpty()) {
                 val modelIndex = models.indexOfFirst { it.modelName == originalModel }
                 if (modelIndex != -1) {
@@ -315,14 +297,12 @@ class MainActivityAddCar : AppCompatActivity() {
                     Log.d(TAG, "Model selected: $originalModel")
                 } else {
                     Log.w(TAG, "Model not found: $originalModel")
-                    // Если модель не найдена, выбираем первую
                     if (models.isNotEmpty()) {
                         modelSpinner.setSelection(0)
                         selectedModelId = models[0].modelId
                     }
                 }
             } else if (models.isNotEmpty()) {
-                // В режиме добавления выбираем первую модель
                 modelSpinner.setSelection(0)
                 selectedModelId = models[0].modelId
             }
@@ -339,7 +319,6 @@ class MainActivityAddCar : AppCompatActivity() {
         Log.d(TAG, "Setting up click listeners")
 
         try {
-            // Обработка выбора марки
             brandSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
                     if (position >= 0 && position < brands.size) {
@@ -347,7 +326,6 @@ class MainActivityAddCar : AppCompatActivity() {
                         val selectedBrand = brands[position].brandName
                         Log.d(TAG, "Selected brand: $selectedBrand (ID: $selectedBrandId)")
 
-                        // Загружаем модели для выбранной марки
                         modelSpinner.isEnabled = false
                         modelSpinner.adapter = ArrayAdapter(this@MainActivityAddCar, android.R.layout.simple_spinner_item, emptyList<String>())
                         saveButton.isEnabled = false
@@ -361,7 +339,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 }
             }
 
-            // Обработка выбора модели
             modelSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: android.widget.AdapterView<*>, view: android.view.View?, position: Int, id: Long) {
                     if (position >= 0 && position < models.size) {
@@ -377,17 +354,14 @@ class MainActivityAddCar : AppCompatActivity() {
                 }
             }
 
-            // Обработка нажатия на фото для выбора из галереи
             carImageView.setOnClickListener {
                 selectImageFromGallery()
             }
 
-            // Обработка нажатия на кнопку отмены (крестик)
             cancelImageView.setOnClickListener {
                 finish()
             }
 
-            // Обработка нажатия кнопки сохранения
             saveButton.setOnClickListener {
                 saveCarToDatabase()
             }
@@ -430,17 +404,14 @@ class MainActivityAddCar : AppCompatActivity() {
         Log.d(TAG, "Saving car to database")
 
         try {
-            // Получаем пробег из EditText
             val mileageText = mileageEditText.text.toString().trim()
 
-            // Проверяем, что пробег введен
             if (mileageText.isEmpty()) {
                 Toast.makeText(this, "Введите пробег автомобиля", Toast.LENGTH_SHORT).show()
                 mileageEditText.requestFocus()
                 return
             }
 
-            // Проверяем, что пробег - число
             val mileage = try {
                 mileageText.toInt()
             } catch (e: NumberFormatException) {
@@ -449,7 +420,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 return
             }
 
-            // Проверяем, что пробег положительный
             if (mileage < 0) {
                 Toast.makeText(this, "Пробег не может быть отрицательным", Toast.LENGTH_SHORT).show()
                 mileageEditText.requestFocus()
@@ -464,7 +434,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 return
             }
 
-            // Показываем прогресс
             saveButton.isEnabled = false
             saveButton.text = "Сохранение..."
 
@@ -515,7 +484,6 @@ class MainActivityAddCar : AppCompatActivity() {
         preparedStatement.setInt(2, selectedModelId)
         preparedStatement.setInt(3, mileage)
 
-        // Устанавливаем фото или null
         if (photoBytes != null) {
             preparedStatement.setBytes(4, photoBytes)
         } else {
@@ -552,7 +520,6 @@ class MainActivityAddCar : AppCompatActivity() {
         preparedStatement.setInt(1, selectedModelId)
         preparedStatement.setInt(2, mileage)
 
-        // Устанавливаем фото или null
         if (photoBytes != null) {
             preparedStatement.setBytes(3, photoBytes)
         } else {

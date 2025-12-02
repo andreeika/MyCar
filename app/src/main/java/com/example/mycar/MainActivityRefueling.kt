@@ -82,12 +82,10 @@ class MainActivityRefueling : AppCompatActivity() {
         imageViewStatistics = findViewById(R.id.imageView7)
         imageViewFuel = findViewById(R.id.imageView4)
 
-        //Цвет для строки состояния
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
 
-        //Цвет для нижней строки с кнопками домой
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
@@ -105,7 +103,6 @@ class MainActivityRefueling : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 val text = s.toString()
 
-                // Автоматически добавляем точки
                 if (text.length == 2 && before == 0) {
                     dateEditText.setText("$text.")
                     dateEditText.setSelection(3)
@@ -135,7 +132,6 @@ class MainActivityRefueling : AppCompatActivity() {
         }
 
         try {
-            // Проверяем формат
             if (!dateText.matches(Regex("\\d{2}\\.\\d{2}\\.\\d{4}"))) {
                 dateEditText.error = "Неверный формат даты"
                 return false
@@ -147,13 +143,11 @@ class MainActivityRefueling : AppCompatActivity() {
                 return false
             }
 
-            // Проверяем, что дата не в будущем
             if (date.after(Date())) {
                 dateEditText.error = "Дата не может быть в будущем"
                 return false
             }
 
-            // Проверяем, что дата не слишком старая (не старше 10 лет)
             val calendar = Calendar.getInstance()
             calendar.add(Calendar.YEAR, -10)
             if (date.before(calendar.time)) {
@@ -215,12 +209,10 @@ class MainActivityRefueling : AppCompatActivity() {
         }
 
         imageViewFuel.setOnClickListener {
-            // Уже на экране заправки
         }
     }
 
     private fun validateInput(): Boolean {
-        // Проверка даты
         if (!validateDate()) {
             dateEditText.requestFocus()
             return false
@@ -304,7 +296,6 @@ class MainActivityRefueling : AppCompatActivity() {
                 val dateText = dateEditText.text.toString().trim()
                 Log.d(TAG, "Input date: $dateText")
 
-                // Парсим дату из формата dd.MM.yyyy
                 val date = dateFormatDisplay.parse(dateText)
                 if (date == null) {
                     withContext(Dispatchers.Main) {
@@ -313,14 +304,11 @@ class MainActivityRefueling : AppCompatActivity() {
                     return@launch
                 }
 
-                // Форматируем дату для SQL Server в формате yyyyMMdd
                 val calendar = Calendar.getInstance()
                 calendar.time = date
                 val year = calendar.get(Calendar.YEAR)
                 val month = calendar.get(Calendar.MONTH) + 1
                 val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-                // Формат для SQL Server: yyyyMMdd (без разделителей)
                 val sqlDate = String.format(Locale.US, "%04d%02d%02d", year, month, day)
                 Log.d(TAG, "SQL date format: $sqlDate")
 
@@ -328,11 +316,9 @@ class MainActivityRefueling : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Начинаем транзакцию для обеспечения целостности данных
                     connect.autoCommit = false
 
                     try {
-                        // 1. Добавляем запись о заправке
                         val insertRefuelingQuery = """
                         INSERT INTO refueling (car_id, fuel_id, station_id, date, mileage, volume, price_per_liter, total_amount, full_tank)
                         VALUES (?, ?, ?, CONVERT(DATETIME, ?, 112), ?, ?, ?, ?, ?)
@@ -342,7 +328,7 @@ class MainActivityRefueling : AppCompatActivity() {
                         preparedStatement.setInt(1, carId)
                         preparedStatement.setInt(2, selectedFuelId)
                         preparedStatement.setInt(3, selectedStationId)
-                        preparedStatement.setString(4, sqlDate) // Формат yyyymmdd
+                        preparedStatement.setString(4, sqlDate)
                         preparedStatement.setDouble(5, mileage)
                         preparedStatement.setDouble(6, volume)
                         preparedStatement.setDouble(7, price)
@@ -353,7 +339,6 @@ class MainActivityRefueling : AppCompatActivity() {
                         preparedStatement.close()
 
                         if (rowsAffected > 0) {
-                            // 2. Обновляем пробег в таблице Cars
                             val updateMileageQuery = """
                             UPDATE Cars 
                             SET mileage = ? 
@@ -368,7 +353,6 @@ class MainActivityRefueling : AppCompatActivity() {
                             val updateRowsAffected = updateStatement.executeUpdate()
                             updateStatement.close()
 
-                            // Коммитим транзакцию
                             connect.commit()
 
                             withContext(Dispatchers.Main) {
@@ -380,18 +364,15 @@ class MainActivityRefueling : AppCompatActivity() {
                                 finish()
                             }
                         } else {
-                            // Откатываем транзакцию в случае ошибки
                             connect.rollback()
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivityRefueling, "Ошибка при добавлении заправки", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } catch (ex: Exception) {
-                        // Откатываем транзакцию в случае ошибки
                         connect.rollback()
                         throw ex
                     } finally {
-                        // Восстанавливаем авто-коммит
                         connect.autoCommit = true
                         connect.close()
                     }

@@ -44,7 +44,6 @@ class SessionManager(context: Context) {
         editor.apply()
     }
 
-    // Методы для работы с текущим автомобилем
     fun setCurrentCar(carId: Int) {
         val editor = prefs.edit()
         editor.putInt(CURRENT_CAR_ID, carId)
@@ -55,7 +54,6 @@ class SessionManager(context: Context) {
         return prefs.getInt(CURRENT_CAR_ID, 0)
     }
 
-    // Упрощенные методы для работы со списком автомобилей
     fun setUserCarIds(carIds: List<Int>) {
         val editor = prefs.edit()
         val carIdsString = carIds.joinToString(",")

@@ -71,8 +71,6 @@ class MainActivity : AppCompatActivity() {
         loadUserCars()
         setupClickListeners()
         setupCarCardClickListener()
-
-        // Восстанавливаем последний выбранный автомобиль при запуске
         restoreLastSelectedCar()
     }
 
@@ -91,7 +89,6 @@ class MainActivity : AppCompatActivity() {
         spinnerContainer = findViewById(R.id.spinnerContainer)
         mainContainer = findViewById(R.id.main)
 
-        // Изначально скрываем спиннер
         spinnerContainer.visibility = View.GONE
     }
 
@@ -130,12 +127,10 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Кнопка выхода из аккаунта
         exit.setOnClickListener {
             showLogoutConfirmation()
         }
 
-        // Обработчик нажатия на заголовок "Моя машина" для показа спиннера
         val titleTextView = findViewById<TextView>(R.id.textView8)
         titleTextView.setOnClickListener {
             if (isSpinnerVisible) {
@@ -155,7 +150,6 @@ class MainActivity : AppCompatActivity() {
         isSpinnerVisible = true
         spinnerContainer.visibility = View.VISIBLE
 
-        // Принудительно запрашиваем перерисовку layout
         spinnerContainer.requestLayout()
         mainContainer.requestLayout()
     }
@@ -202,7 +196,6 @@ class MainActivity : AppCompatActivity() {
                     launch(Dispatchers.Main) {
                         setupCarSpinner()
                         if (userCars.isNotEmpty()) {
-                            // Восстанавливаем выбранный автомобиль или выбираем первый
                             restoreCarSelection()
                         } else {
                             showNoCarsMessage()
@@ -256,7 +249,6 @@ class MainActivity : AppCompatActivity() {
         val savedCarName = sharedPreferences.getString(PREF_CAR_NAME, "")
 
         if (savedCarId != -1 && savedCarName?.isNotEmpty() == true) {
-            // Показываем сохраненный автомобиль до загрузки списка
             textView_Brand.text = savedCarName
             textView_Name.text = "Загрузка..."
             textView_Probeg.text = "км"
@@ -269,7 +261,6 @@ class MainActivity : AppCompatActivity() {
         if (savedCarId != -1) {
             val savedCarIndex = userCars.indexOfFirst { it.id == savedCarId }
             if (savedCarIndex != -1) {
-                // Выбираем сохраненный автомобиль в спиннере
                 carSpinner.setSelection(savedCarIndex)
                 val selectedCar = userCars[savedCarIndex]
                 displayCarInfo(selectedCar)
@@ -278,7 +269,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Если сохраненный автомобиль не найден, выбираем первый
         if (userCars.isNotEmpty()) {
             carSpinner.setSelection(0)
             val firstCar = userCars[0]
@@ -316,7 +306,6 @@ class MainActivity : AppCompatActivity() {
         textView_Probeg.text = "0 км"
         imageView.setImageResource(R.drawable.add_photo)
 
-        // Очищаем сохраненный выбор
         sharedPreferences.edit()
             .remove(PREF_CAR_ID)
             .remove(PREF_CAR_NAME)
@@ -333,7 +322,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
-        // Очищаем сохраненные данные при выходе
         sharedPreferences.edit()
             .remove(PREF_CAR_ID)
             .remove(PREF_CAR_NAME)
@@ -360,7 +348,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Обработка нажатия на экран для скрытия спиннера
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN && isSpinnerVisible) {
             val spinnerView = spinnerContainer
@@ -374,7 +361,6 @@ class MainActivity : AppCompatActivity() {
             val isTouchInsideSpinner = (x >= spinnerLocation[0] && x <= spinnerLocation[0] + spinnerView.width &&
                     y >= spinnerLocation[1] && y <= spinnerLocation[1] + spinnerView.height)
 
-            // Если нажатие было вне спиннера - скрываем его
             if (!isTouchInsideSpinner) {
                 hideSpinner()
             }
@@ -391,7 +377,6 @@ class MainActivity : AppCompatActivity() {
                     openCarForEditing(car)
                 }
             } else {
-                // Если нет автомобилей, открываем пустую форму для добавления
                 val intent = Intent(this@MainActivity, MainActivityAddCar::class.java)
                 startActivity(intent)
             }
@@ -406,7 +391,6 @@ class MainActivity : AppCompatActivity() {
         intent.putExtra("model", car.model)
         intent.putExtra("mileage", car.mileage.toInt())
 
-        // Безопасная передача фото
         if (car.photoBytes != null && car.photoBytes.isNotEmpty()) {
             intent.putExtra("photo_bytes", car.photoBytes)
         }

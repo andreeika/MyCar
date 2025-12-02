@@ -52,7 +52,7 @@ class MainActivityNotifications : AppCompatActivity() {
         setContentView(R.layout.activity_main_notifications)
 
         sharedPreferences = getSharedPreferences("my_car_prefs", MODE_PRIVATE)
-        notificationManager = NotificationManager() // Инициализация менеджера уведомлений
+        notificationManager = NotificationManager()
         initializeViews()
         setupClickListeners()
         loadNotifications()
@@ -92,7 +92,6 @@ class MainActivityNotifications : AppCompatActivity() {
     private fun loadNotifications() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Используем NotificationManager для загрузки уведомлений из БД
                 val urgentNotifications = notificationManager.getUrgentNotifications(this@MainActivityNotifications)
                 val recommendations = notificationManager.getMaintenanceRecommendations(this@MainActivityNotifications)
                 val infoNotifications = notificationManager.getInfoNotifications(this@MainActivityNotifications)
@@ -103,7 +102,6 @@ class MainActivityNotifications : AppCompatActivity() {
             } catch (ex: Exception) {
                 ex.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    // Показываем тестовые данные при ошибке
                     Toast.makeText(this@MainActivityNotifications, "Ошибка загрузки уведомлений", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -127,7 +125,6 @@ class MainActivityNotifications : AppCompatActivity() {
             onNotificationClick(notification)
         }
 
-        // Скрываем карточки если нет уведомлений
         findViewById<View>(R.id.urgentNotificationsCard).visibility =
             if (urgent.isEmpty()) View.GONE else View.VISIBLE
         findViewById<View>(R.id.maintenanceRecommendationsCard).visibility =
@@ -135,7 +132,6 @@ class MainActivityNotifications : AppCompatActivity() {
         findViewById<View>(R.id.infoNotificationsCard).visibility =
             if (info.isEmpty()) View.GONE else View.VISIBLE
 
-        // Показываем сообщение если нет уведомлений вообще
         if (urgent.isEmpty() && recommendations.isEmpty() && info.isEmpty()) {
             showNoNotificationsMessage()
         }
@@ -148,10 +144,8 @@ class MainActivityNotifications : AppCompatActivity() {
             NotificationType.INFO -> showInfoDialog(notification)
         }
 
-        // Помечаем как прочитанное
         notificationManager.markAsRead(notification.id)
 
-        // Обновляем UI чтобы убрать подсветку
         loadNotifications()
     }
 
@@ -160,9 +154,6 @@ class MainActivityNotifications : AppCompatActivity() {
             .setTitle("⚠️ " + notification.title)
             .setMessage(notification.message)
             .setPositiveButton("Перейти к обслуживанию") { dialog, which ->
-                // Здесь можно добавить переход к экрану обслуживания
-                // val intent = Intent(this, MainActivityMaintenance::class.java)
-                // startActivity(intent)
             }
             .setNegativeButton("Закрыть", null)
             .show()
@@ -173,9 +164,6 @@ class MainActivityNotifications : AppCompatActivity() {
             .setTitle("🔧 " + notification.title)
             .setMessage(notification.message)
             .setPositiveButton("Запланировать ТО") { dialog, which ->
-                // Здесь можно добавить переход к экрану планирования ТО
-                // val intent = Intent(this, MainActivityMaintenance::class.java)
-                // startActivity(intent)
             }
             .setNegativeButton("Позже", null)
             .show()
@@ -190,13 +178,10 @@ class MainActivityNotifications : AppCompatActivity() {
     }
 
     private fun showNoNotificationsMessage() {
-        // Можно добавить TextView с сообщением "Нет уведомлений"
         Toast.makeText(this, "Нет новых уведомлений", Toast.LENGTH_SHORT).show()
     }
 
 
-
-    // Адаптер для уведомлений
     class NotificationAdapter(
         private val notifications: List<Notification>,
         private val onItemClick: (Notification) -> Unit
@@ -221,7 +206,6 @@ class MainActivityNotifications : AppCompatActivity() {
             val notification = notifications[position]
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
 
-            // Устанавливаем иконку в зависимости от типа
             when (notification.type) {
                 NotificationType.URGENT -> {
                     holder.imageViewIcon.setImageResource(android.R.drawable.ic_dialog_alert)
@@ -241,11 +225,8 @@ class MainActivityNotifications : AppCompatActivity() {
             holder.textViewMessage.text = notification.message
             holder.textViewDate.text = dateFormat.format(notification.date)
             holder.textViewCarInfo.text = notification.carName
-
-            // Скрываем разделитель для последнего элемента
             holder.divider.visibility = if (position == notifications.size - 1) View.GONE else View.VISIBLE
 
-            // Подсвечиваем непрочитанные уведомления
             if (!notification.isRead) {
                 holder.itemView.setBackgroundColor(Color.parseColor("#E3F2FD"))
             } else {

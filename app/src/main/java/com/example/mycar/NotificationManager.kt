@@ -18,7 +18,6 @@ class NotificationManager {
                 val userId = sharedPreferences.getInt("user_id", 1)
 
                 if (connect != null) {
-                    // Получаем текущий пробег автомобиля
                     val mileageQuery = """
                         SELECT c.car_id, c.mileage as current_mileage, 
                                cb.name as brand_name, cm.name as model_name
@@ -38,7 +37,6 @@ class NotificationManager {
                         val currentMileage = mileageResult.getInt("current_mileage")
                         val carName = "${mileageResult.getString("brand_name")} ${mileageResult.getString("model_name")}"
 
-                        // 1. Проверяем просроченное обслуживание
                         val overdueQuery = """
                             SELECT st.service_type_id, st.name as service_name, st.internal_km,
                                    MAX(m.mileage) as last_service_mileage
@@ -74,7 +72,6 @@ class NotificationManager {
                         overdueResult.close()
                         overdueStatement.close()
 
-                        // 2. Проверяем срочное обслуживание (менее 500 км до обслуживания)
                         val urgentQuery = """
                             SELECT st.service_type_id, st.name as service_name, st.internal_km,
                                    MAX(m.mileage) as last_service_mileage
@@ -135,7 +132,6 @@ class NotificationManager {
                 val userId = sharedPreferences.getInt("user_id", 1)
 
                 if (connect != null) {
-                    // Получаем текущий пробег автомобиля
                     val mileageQuery = """
                         SELECT c.car_id, c.mileage as current_mileage, 
                                cb.name as brand_name, cm.name as model_name
@@ -155,7 +151,6 @@ class NotificationManager {
                         val currentMileage = mileageResult.getInt("current_mileage")
                         val carName = "${mileageResult.getString("brand_name")} ${mileageResult.getString("model_name")}"
 
-                        // Рекомендации по обслуживанию (500-2000 км до обслуживания)
                         val recommendationQuery = """
                             SELECT st.service_type_id, st.name as service_name, st.internal_km,
                                    MAX(m.mileage) as last_service_mileage
@@ -217,7 +212,6 @@ class NotificationManager {
                 if (connect != null) {
                     val infoNotifications = mutableListOf<MainActivityNotifications.Notification>()
 
-                    // Проверяем страховку и другие информационные уведомления
                     val carsQuery = """
                         SELECT c.car_id, cb.name as brand_name, cm.name as model_name
                         FROM Cars c
@@ -233,7 +227,6 @@ class NotificationManager {
                         val carId = carsResult.getInt("car_id")
                         val carName = "${carsResult.getString("brand_name")} ${carsResult.getString("model_name")}"
 
-                        // Пример информационного уведомления о необходимости проверки
                         infoNotifications.add(
                             MainActivityNotifications.Notification(
                                 id = carId + 1000,
@@ -263,8 +256,6 @@ class NotificationManager {
     }
 
     fun markAsRead(notificationId: Int) {
-        // Сохраняем в SharedPreferences что уведомление прочитано
-        // В реальном приложении можно сохранять в БД
         println("Notification $notificationId marked as read")
     }
 }

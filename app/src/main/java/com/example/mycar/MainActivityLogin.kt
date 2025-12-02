@@ -43,12 +43,10 @@ class MainActivityLogin : AppCompatActivity() {
         initViews()
         setClickListeners()
 
-        //Цвет для строки состояния
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
 
-        //Цвет для нижней строки с кнопками домой
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
@@ -103,7 +101,6 @@ class MainActivityLogin : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Получаем пользователя по логину
                     val query = "SELECT user_id, full_name, username, password FROM users WHERE username = ?"
                     val preparedStatement: PreparedStatement = connect.prepareStatement(query)
                     preparedStatement.setString(1, username)
@@ -118,11 +115,9 @@ class MainActivityLogin : AppCompatActivity() {
 
                         Log.d(TAG, "Stored encrypted password length: ${storedEncryptedPassword?.length ?: 0}")
 
-                        // Проверяем пароль с помощью шифрования
                         val isPasswordCorrect = PasswordEncryptor.checkPassword(password, storedEncryptedPassword)
 
                         if (isPasswordCorrect) {
-                            // Сохраняем данные сессии
                             sessionManager.saveAuthToken(userId, fullName, dbUsername)
 
                             withContext(Dispatchers.Main) {
@@ -165,27 +160,20 @@ class MainActivityLogin : AppCompatActivity() {
 
     private fun enableLoginButton() {
         btnLogin.isEnabled = true
-        // btnRegister.isEnabled = true // Раскомментируйте если есть кнопка регистрации
     }
 
     private fun startMainActivity() {
         val intent = Intent(this@MainActivityLogin, MainActivity::class.java)
 
-        // Очищаем back stack чтобы нельзя было вернуться назад к логину
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
 
         startActivity(intent)
-
-        // ВАЖНО: закрываем LoginActivity
         finish()
-
-        // Добавляем анимацию перехода (опционально)
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Отменяем все корутины при уничтожении Activity
         lifecycleScope.cancel()
     }
 }

@@ -92,12 +92,10 @@ class MainActivityStatistics : AppCompatActivity() {
             Toast.makeText(this, "Ошибка инициализации: ${e.message}", Toast.LENGTH_LONG).show()
         }
 
-        //Цвет для строки состояния
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
 
-        //Цвет для нижней строки с кнопками домой
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
@@ -112,21 +110,16 @@ class MainActivityStatistics : AppCompatActivity() {
             editTextDateTo = findViewById(R.id.editTextDateTo)
             buttonApply = findViewById(R.id.buttonApply)
             closeImageView = findViewById(R.id.imageViewClose)
-
-            // Инициализация текстовых полей
             textViewTotalExpenses = findViewById(R.id.textViewTotalExpenses)
             textViewFuelExpenses = findViewById(R.id.textViewFuelExpenses)
             textViewMaintenanceExpenses = findViewById(R.id.textViewMaintenanceExpenses)
             textViewCostPerKm = findViewById(R.id.textViewCostPerKm)
             textViewMileage = findViewById(R.id.textViewMileageValue)
             textViewFuelConsumption = findViewById(R.id.textViewFuelConsumptionValue)
-
-            // Инициализация диаграмм
             pieChart = findViewById(R.id.pieChart)
             lineChart = findViewById(R.id.lineChart)
             barChart = findViewById(R.id.barChart)
 
-            // Установка текущих дат по умолчанию
             setDefaultDates()
 
         } catch (e: Exception) {
@@ -140,11 +133,9 @@ class MainActivityStatistics : AppCompatActivity() {
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
             val calendar = Calendar.getInstance()
 
-            // Дата "от" - начало текущего месяца
             calendar.set(Calendar.DAY_OF_MONTH, 1)
             editTextDateFrom.setText(dateFormat.format(calendar.time))
 
-            // Дата "по" - текущая дата
             calendar.time = Date()
             editTextDateTo.setText(dateFormat.format(calendar.time))
         } catch (e: Exception) {
@@ -163,7 +154,7 @@ class MainActivityStatistics : AppCompatActivity() {
 
         periodTypeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val showCustomPeriod = position == 4 // "Произвольный период"
+                val showCustomPeriod = position == 4
                 customPeriodLayout.visibility = if (showCustomPeriod) View.VISIBLE else View.GONE
                 if (!showCustomPeriod) {
                     updateDatesForPeriod(position)
@@ -180,7 +171,6 @@ class MainActivityStatistics : AppCompatActivity() {
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
             val calendar = Calendar.getInstance()
 
-            // Устанавливаем дату "по" как текущую
             editTextDateTo.setText(dateFormat.format(calendar.time))
 
             when (periodPosition) {
@@ -198,7 +188,7 @@ class MainActivityStatistics : AppCompatActivity() {
 
     private fun setupCharts() {
         try {
-            // Настройка круговой диаграммы
+            // круговая диаграмма
             pieChart.setUsePercentValues(true)
             pieChart.description.isEnabled = false
             pieChart.setExtraOffsets(5f, 10f, 5f, 5f)
@@ -215,7 +205,7 @@ class MainActivityStatistics : AppCompatActivity() {
             pieChart.isHighlightPerTapEnabled = true
             pieChart.legend.isEnabled = true
 
-            // Настройка линейной диаграммы
+            // линейная диаграмма
             lineChart.description.isEnabled = false
             lineChart.setTouchEnabled(true)
             lineChart.isDragEnabled = true
@@ -236,7 +226,7 @@ class MainActivityStatistics : AppCompatActivity() {
             lineChart.axisRight.isEnabled = false
             lineChart.legend.isEnabled = true
 
-            // Настройка столбчатой диаграммы
+            // столбчатая диаграмма
             barChart.description.isEnabled = false
             barChart.setTouchEnabled(true)
             barChart.isDragEnabled = true
@@ -334,7 +324,6 @@ class MainActivityStatistics : AppCompatActivity() {
             periodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             periodTypeSpinner.adapter = periodAdapter
 
-            // Добавляем слушатель для выбора автомобиля
             carSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                 override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                     if (position in userCars.indices) {
@@ -594,20 +583,16 @@ class MainActivityStatistics : AppCompatActivity() {
             data.setValueTextSize(12f)
             data.setValueTextColor(Color.WHITE)
 
-            // Улучшенный форматтер для значений
             data.setValueFormatter(object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return if (pieChart.isUsePercentValuesEnabled) {
-                        // Если включены проценты, показываем проценты
                         "${value.toInt()}%"
                     } else {
-                        // Если проценты выключены, показываем абсолютные значения
                         "%,d руб.".format(value.toInt())
                     }
                 }
 
                 override fun getPieLabel(value: Float, pieEntry: PieEntry?): String {
-                    // Метка для сегмента диаграммы
                     val label = pieEntry?.label ?: ""
                     val amount = pieEntry?.value ?: 0f
                     return if (pieChart.isUsePercentValuesEnabled) {

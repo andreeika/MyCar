@@ -26,7 +26,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var dateEditText: EditText
     private lateinit var mileageEditText: EditText
     private lateinit var amountEditText: EditText
-    private lateinit var nextServiceMileageEditText: EditText // Изменено с nextServiceDateEditText
+    private lateinit var nextServiceMileageEditText: EditText
     private lateinit var descriptionEditText: EditText
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
@@ -49,7 +49,6 @@ class MainActivityMaintenance : AppCompatActivity() {
         setupClickListeners()
         loadServiceTypesFromDatabase()
         setCurrentDate()
-
         setupStatusBarColors()
     }
 
@@ -58,24 +57,21 @@ class MainActivityMaintenance : AppCompatActivity() {
         dateEditText = findViewById(R.id.dateEditText)
         mileageEditText = findViewById(R.id.mileageEditText)
         amountEditText = findViewById(R.id.amountEditText)
-        nextServiceMileageEditText = findViewById(R.id.nextServiceDateEditText) // Используем тот же ID из XML
+        nextServiceMileageEditText = findViewById(R.id.nextServiceDateEditText)
         descriptionEditText = findViewById(R.id.descriptionEditText)
         addMaintenanceButton = findViewById(R.id.addMaintenanceButton)
         cancelImageView = findViewById(R.id.imageViewCancel)
 
-        // Обновляем подсказки
         mileageEditText.hint = "Текущий пробег, км"
         amountEditText.hint = "0.00"
         nextServiceMileageEditText.hint = "Следующий пробег, км"
     }
 
     private fun setupStatusBarColors() {
-        //Цвет для строки состояния
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
 
-        //Цвет для нижней строки с кнопками домой
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
@@ -110,14 +106,12 @@ class MainActivityMaintenance : AppCompatActivity() {
             }
         }
 
-        // DatePicker только для даты обслуживания
         dateEditText.setOnClickListener {
             showDatePicker(dateEditText)
         }
 
 
         nextServiceMileageEditText.setOnClickListener {
-            // Можно добавить калькулятор пробега если нужно
         }
     }
 
@@ -160,7 +154,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                     val nextServiceMileage = currentMileage + service.intervalKm
                     nextServiceMileageEditText.setText(nextServiceMileage.toString())
                 } else {
-                    // Если интервал не задан, оставляем поле пустым
                     nextServiceMileageEditText.text.clear()
                 }
             }
@@ -261,11 +254,9 @@ class MainActivityMaintenance : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Начинаем транзакцию
                     connect.autoCommit = false
 
                     try {
-                        // 1. Добавляем запись о техобслуживании
                         val insertQuery = """
                         INSERT INTO Maintenance 
                         (car_id, service_type_id, date, mileage, total_amount, description, next_service_date) 
@@ -290,7 +281,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                         preparedStatement.close()
 
                         if (rowsAffected > 0) {
-                            // 2. Обновляем пробег в таблице Cars
                             val updateMileageQuery = """
                             UPDATE Cars 
                             SET mileage = ? 
@@ -305,7 +295,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                             val updateRowsAffected = updateStatement.executeUpdate()
                             updateStatement.close()
 
-                            // Коммитим транзакцию
                             connect.commit()
 
                             withContext(Dispatchers.Main) {
@@ -316,18 +305,15 @@ class MainActivityMaintenance : AppCompatActivity() {
                                 }
                             }
                         } else {
-                            // Откатываем транзакцию в случае ошибки
                             connect.rollback()
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivityMaintenance, "Ошибка при добавлении обслуживания", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } catch (ex: Exception) {
-                        // Откатываем транзакцию в случае ошибки
                         connect.rollback()
                         throw ex
                     } finally {
-                        // Восстанавливаем авто-коммит
                         connect.autoCommit = true
                         connect.close()
                     }
@@ -345,7 +331,6 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
     }
 
-    // Добавьте этот метод если его нет
     private fun showSuccessMessage(message: String = "Обслуживание успешно добавлено!") {
         Toast.makeText(this@MainActivityMaintenance, message, Toast.LENGTH_SHORT).show()
         finish()
@@ -371,20 +356,17 @@ class MainActivityMaintenance : AppCompatActivity() {
             return false
         }
 
-        // Валидация даты
         if (!isValidDate(dateEditText.text.toString().trim())) {
             showError("Неверный формат даты (дд.мм.гггг)", dateEditText)
             return false
         }
 
-        // Валидация пробега
         val mileage = mileageEditText.text.toString().trim().toIntOrNull()
         if (mileage == null || mileage < 0) {
             showError("Пробег должен быть положительным числом", mileageEditText)
             return false
         }
 
-        // Валидация следующего пробега (если заполнено)
         val nextMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
         if (nextMileage != null && nextMileage <= mileage) {
             showError("Следующий пробег должен быть больше текущего", nextServiceMileageEditText)
@@ -418,5 +400,3 @@ data class ServiceType(
     val category: String,
     val intervalKm: Int
 )
-
-//некорректно считает пробег следующего ремонта и дату следующего ремонта, нет зависимости от выбранного авто, car id всегда 1

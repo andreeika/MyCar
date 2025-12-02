@@ -58,12 +58,10 @@ class MainActivityRegister : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        // Цвет для строки состояния
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
 
-        // Цвет для нижней строки с кнопками домой
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
@@ -82,7 +80,6 @@ class MainActivityRegister : AppCompatActivity() {
         }
 
         textViewLogin.setOnClickListener {
-            // Переход на экран входа
             val intent = Intent(this, MainActivityLogin::class.java)
             startActivity(intent)
             finish()
@@ -154,7 +151,6 @@ class MainActivityRegister : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Сначала проверяем, существует ли пользователь с таким логином
                     if (isUsernameExists(username)) {
                         withContext(Dispatchers.Main) {
                             showProgress(false)
@@ -164,11 +160,9 @@ class MainActivityRegister : AppCompatActivity() {
                         return@launch
                     }
 
-                    // Шифруем пароль перед сохранением
                     val encryptedPassword = PasswordEncryptor.hashPassword(password)
                     Log.d(TAG, "Password encrypted: ${password.length} chars -> ${encryptedPassword.length} chars")
 
-                    // Регистрируем нового пользователя
                     val query = "INSERT INTO users (full_name, username, password) VALUES (?, ?, ?)"
                     val preparedStatement: PreparedStatement = connect.prepareStatement(query)
                     preparedStatement.setString(1, fullName)
@@ -185,8 +179,6 @@ class MainActivityRegister : AppCompatActivity() {
 
                         if (rowsAffected > 0) {
                             Toast.makeText(this@MainActivityRegister, "Регистрация успешна!", Toast.LENGTH_SHORT).show()
-
-                            // Автоматически логиним пользователя после регистрации
                             autoLoginAfterRegistration(username, password)
                         } else {
                             Toast.makeText(this@MainActivityRegister, "Ошибка при регистрации", Toast.LENGTH_SHORT).show()
@@ -253,19 +245,15 @@ class MainActivityRegister : AppCompatActivity() {
                         val fullName = resultSet.getString("full_name")
                         val dbUsername = resultSet.getString("username")
                         val storedEncryptedPassword = resultSet.getString("password")
-
-                        // Проверяем пароль после регистрации
                         val isPasswordCorrect = PasswordEncryptor.checkPassword(password, storedEncryptedPassword)
 
                         if (isPasswordCorrect) {
-                            // Сохраняем данные сессии
                             val sessionManager = SessionManager(this@MainActivityRegister)
                             sessionManager.saveAuthToken(userId, fullName, dbUsername)
 
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivityRegister, "Добро пожаловать, $fullName!", Toast.LENGTH_SHORT).show()
 
-                                // Переходим на главный экран
                                 val intent = Intent(this@MainActivityRegister, MainActivity::class.java)
                                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
                                 startActivity(intent)
@@ -283,7 +271,6 @@ class MainActivityRegister : AppCompatActivity() {
             } catch (ex: Exception) {
                 Log.e(TAG, "Error auto login: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    // Если авто-логин не удался, переходим на экран входа
                     val intent = Intent(this@MainActivityRegister, MainActivityLogin::class.java)
                     startActivity(intent)
                     finish()
