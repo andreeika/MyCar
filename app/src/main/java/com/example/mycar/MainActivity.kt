@@ -1,6 +1,7 @@
 package com.example.mycar
 
 import SessionManager
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
@@ -25,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private val sessionManager by lazy { SessionManager(this) }
     private lateinit var sharedPreferences: SharedPreferences
 
+    private val notificationManager = NotificationManager()
     companion object {
         private const val TAG = "MainActivity"
         private const val PREF_CAR_ID = "current_car_id"
@@ -380,6 +382,8 @@ class MainActivity : AppCompatActivity() {
                 val intent = Intent(this@MainActivity, MainActivityAddCar::class.java)
                 startActivity(intent)
             }
+            val sharedPrefs = getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
+            sharedPrefs.edit().putInt("current_car_id", selectedCarId).apply()
         }
     }
 
@@ -398,4 +402,5 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "Opening car for editing: ${car.displayName}, ID: ${car.id}")
         startActivity(intent)
     }
+
 }
