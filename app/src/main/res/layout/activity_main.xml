@@ -67,7 +67,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.02"
-        app:srcCompat="@drawable/notification" />
+        app:srcCompat="@drawable/uvedoml" />
 
     <ImageView
         android:id="@+id/imageView3"

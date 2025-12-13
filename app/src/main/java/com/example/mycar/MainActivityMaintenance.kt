@@ -32,6 +32,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var cancelImageView: ImageView
 
     private val serviceTypes = mutableListOf<ServiceType>()
+    private val categories = mutableListOf<ServiceCategory>()
     private var selectedServiceTypeId: Int = 0
     private lateinit var sharedPreferences: SharedPreferences
 
@@ -47,7 +48,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         sharedPreferences = getSharedPreferences("my_car_prefs", MODE_PRIVATE)
         initializeViews()
         setupClickListeners()
-        loadServiceTypesFromDatabase()
+        loadServiceTypesWithCategories()
         setCurrentDate()
         setupStatusBarColors()
     }
@@ -110,15 +111,38 @@ class MainActivityMaintenance : AppCompatActivity() {
             showDatePicker(dateEditText)
         }
 
-
         nextServiceMileageEditText.setOnClickListener {
+            // Можете добавить дополнительную логику здесь
         }
     }
 
     private fun handleServiceTypeSelection(position: Int) {
-        if (position >= 0 && position < serviceTypes.size) {
-            selectedServiceTypeId = serviceTypes[position].serviceTypeId
-            val selectedService = serviceTypes[position].name
+        // Получаем реальную позицию сервиса в списке serviceTypes
+        // Пропускаем заголовки категорий в спиннере
+        var serviceIndex = -1
+        var itemCount = 0
+
+        for ((catIndex, category) in categories.withIndex()) {
+            if (position == itemCount) {
+                // Это заголовок категории - не выбираем
+                return
+            }
+            itemCount++
+
+            val catServices = serviceTypes.filter { it.categoryId == category.categoryId }
+            for ((servicePos, service) in catServices.withIndex()) {
+                if (position == itemCount) {
+                    serviceIndex = serviceTypes.indexOf(service)
+                    break
+                }
+                itemCount++
+            }
+            if (serviceIndex != -1) break
+        }
+
+        if (serviceIndex >= 0 && serviceIndex < serviceTypes.size) {
+            selectedServiceTypeId = serviceTypes[serviceIndex].serviceTypeId
+            val selectedService = serviceTypes[serviceIndex].name
             Log.d(TAG, "Selected service type: $selectedService (ID: $selectedServiceTypeId)")
             calculateNextServiceMileage()
         }
@@ -162,33 +186,55 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
     }
 
-    private fun loadServiceTypesFromDatabase() {
+    private fun loadServiceTypesWithCategories() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val connectionHelper = ConnectionHelper()
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    val query = """
-                        SELECT service_type_id, name, category, interval_km 
-                        FROM ServiceTypes 
-                        ORDER BY category, name
+                    // Загружаем категории
+                    val categoryQuery = """
+                        SELECT category_id, name 
+                        FROM ServiceCategory 
+                        ORDER BY category_id
                     """
 
-                    val statement: Statement = connect.createStatement()
-                    val resultSet: ResultSet = statement.executeQuery(query)
+                    val categoryStatement: Statement = connect.createStatement()
+                    val categoryResultSet: ResultSet = categoryStatement.executeQuery(categoryQuery)
+
+                    categories.clear()
+                    while (categoryResultSet.next()) {
+                        val categoryId = categoryResultSet.getInt("category_id")
+                        val categoryName = categoryResultSet.getString("name")
+                        categories.add(ServiceCategory(categoryId, categoryName))
+                    }
+                    categoryResultSet.close()
+                    categoryStatement.close()
+
+                    // Загружаем сервисы с JOIN по category_id
+                    val serviceQuery = """
+                        SELECT st.service_type_id, st.name, st.category_id, st.interval_km, sc.name as category_name
+                        FROM ServiceTypes st
+                        LEFT JOIN ServiceCategory sc ON st.category_id = sc.category_id
+                        ORDER BY st.category_id, st.name
+                    """
+
+                    val serviceStatement: Statement = connect.createStatement()
+                    val serviceResultSet: ResultSet = serviceStatement.executeQuery(serviceQuery)
 
                     serviceTypes.clear()
-                    while (resultSet.next()) {
-                        val serviceTypeId = resultSet.getInt("service_type_id")
-                        val name = resultSet.getString("name")
-                        val category = resultSet.getString("category")
-                        val intervalKm = resultSet.getInt("interval_km")
-                        serviceTypes.add(ServiceType(serviceTypeId, name, category, intervalKm))
+                    while (serviceResultSet.next()) {
+                        val serviceTypeId = serviceResultSet.getInt("service_type_id")
+                        val name = serviceResultSet.getString("name")
+                        val categoryId = serviceResultSet.getInt("category_id")
+                        val intervalKm = serviceResultSet.getInt("interval_km")
+                        val categoryName = serviceResultSet.getString("category_name")
+                        serviceTypes.add(ServiceType(serviceTypeId, name, categoryId, categoryName, intervalKm))
                     }
 
-                    resultSet.close()
-                    statement.close()
+                    serviceResultSet.close()
+                    serviceStatement.close()
                     connect.close()
 
                     withContext(Dispatchers.Main) {
@@ -209,16 +255,21 @@ class MainActivityMaintenance : AppCompatActivity() {
     }
 
     private fun updateServiceTypeSpinner() {
-        val categories = serviceTypes.map { it.category }.distinct()
         val serviceTypeItems = mutableListOf<String>()
 
+        // Группируем сервисы по категориям
+        val servicesByCategory = serviceTypes.groupBy { it.categoryId }
+
+        // Создаем список для спиннера с заголовками категорий
         for (category in categories) {
-            serviceTypeItems.add("--- $category ---")
-            val categoryServices = serviceTypes.filter { it.category == category }
-            categoryServices.forEach { service ->
-                val intervalText = if (service.intervalKm > 0) "каждые ${service.intervalKm} км" else "по необходимости"
-                val displayName = "${service.name} ($intervalText)"
-                serviceTypeItems.add(displayName)
+            val categoryServices = servicesByCategory[category.categoryId]
+            if (categoryServices != null && categoryServices.isNotEmpty()) {
+                serviceTypeItems.add("--- ${category.name} ---")
+                categoryServices.forEach { service ->
+                    val intervalText = if (service.intervalKm > 0) "каждые ${service.intervalKm} км" else "по необходимости"
+                    val displayName = "${service.name} ($intervalText)"
+                    serviceTypeItems.add(displayName)
+                }
             }
         }
 
@@ -230,12 +281,18 @@ class MainActivityMaintenance : AppCompatActivity() {
             override fun isEnabled(position: Int): Boolean {
                 return !serviceTypeItems[position].startsWith("---")
             }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent)
+                view.setBackgroundColor(ContextCompat.getColor(this@MainActivityMaintenance, R.color.white))
+                return view
+            }
         }
 
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         serviceTypeSpinner.adapter = adapter
 
-        Log.d(TAG, "Service types loaded: ${serviceTypes.size}")
+        Log.d(TAG, "Service types loaded: ${serviceTypes.size}, Categories: ${categories.size}")
     }
 
     private fun saveMaintenanceToDatabase() {
@@ -397,6 +454,12 @@ class MainActivityMaintenance : AppCompatActivity() {
 data class ServiceType(
     val serviceTypeId: Int,
     val name: String,
-    val category: String,
+    val categoryId: Int,
+    val categoryName: String,
     val intervalKm: Int
+)
+
+data class ServiceCategory(
+    val categoryId: Int,
+    val name: String
 )
