@@ -129,10 +129,10 @@
             <TextView
                 android:id="@+id/textViewConfirmPasswordLabel"
                 android:layout_width="100dp"
-                android:layout_height="40dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:gravity="center_vertical"
-                android:text="Повторите:"
+                android:text="Повторите пароль:"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
@@ -188,11 +188,14 @@
         android:id="@+id/imageViewCancel"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_marginEnd="16dp"
         android:contentDescription="Отмена"
         android:tint="#228BE6"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.956"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0399"
         app:srcCompat="@drawable/cancel" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

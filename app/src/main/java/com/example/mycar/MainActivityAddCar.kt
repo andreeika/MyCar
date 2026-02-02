@@ -87,7 +87,7 @@ class MainActivityAddCar : AppCompatActivity() {
             modelSpinner = findViewById(R.id.modelSpinner)
             saveButton = findViewById(R.id.button)
             mileageEditText = findViewById(R.id.textInputEditText)
-            carImageView = findViewById(R.id.imageView)
+            carImageView = findViewById(R.id.imageView11)
             cancelImageView = findViewById(R.id.imageView2)
             titleTextView = findViewById(R.id.textView2)
             mileageEditText.hint = "Введите пробег"
@@ -130,17 +130,17 @@ class MainActivityAddCar : AppCompatActivity() {
                         carImageView.setImageBitmap(bitmap)
                     } catch (e: Exception) {
                         Log.e(TAG, "Error setting photo: ${e.message}")
-                        carImageView.setImageResource(R.drawable.add_photo)
+                        carImageView.setImageResource(R.drawable.ph)
                     }
                 } else {
-                    carImageView.setImageResource(R.drawable.add_photo)
+                    carImageView.setImageResource(R.drawable.ph)
                 }
 
                 Log.d(TAG, "Edit mode: Brand=$originalBrand, Model=$originalModel, Mileage=$originalMileage")
             } else {
                 titleTextView.text = "Добавить авто"
                 saveButton.text = "Добавить авто"
-                carImageView.setImageResource(R.drawable.add_photo)
+                carImageView.setImageResource(R.drawable.ph)
                 Log.d(TAG, "Add mode")
             }
         } catch (e: Exception) {

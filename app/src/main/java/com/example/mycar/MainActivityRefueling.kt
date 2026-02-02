@@ -1,6 +1,7 @@
 package com.example.mycar
 
 import SessionManager
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
@@ -35,6 +36,7 @@ class MainActivityRefueling : AppCompatActivity() {
     private lateinit var imageViewService: ImageView
     private lateinit var imageViewStatistics: ImageView
     private lateinit var imageViewFuel: ImageView
+    private lateinit var history: ImageView
 
     private val fuels = mutableListOf<Fuel>()
     private val stations = mutableListOf<GasStation>()
@@ -81,6 +83,7 @@ class MainActivityRefueling : AppCompatActivity() {
         imageViewService = findViewById(R.id.imageView5)
         imageViewStatistics = findViewById(R.id.imageView7)
         imageViewFuel = findViewById(R.id.imageView4)
+        history = findViewById(R.id.imageView8)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
@@ -95,6 +98,8 @@ class MainActivityRefueling : AppCompatActivity() {
         val currentDate = Date()
         dateEditText.setText(dateFormatDisplay.format(currentDate))
     }
+
+
 
     private fun setupDateInputMask() {
         dateEditText.addTextChangedListener(object : TextWatcher {
@@ -201,14 +206,22 @@ class MainActivityRefueling : AppCompatActivity() {
         }
 
         imageViewService.setOnClickListener {
-            Toast.makeText(this, "Обслуживание", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this@MainActivityRefueling, MainActivityMaintenance::class.java)
+            startActivity(intent)
         }
 
         imageViewStatistics.setOnClickListener {
-            Toast.makeText(this, "Статистика", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this@MainActivityRefueling, MainActivityStatistics::class.java)
+            startActivity(intent)
         }
 
         imageViewFuel.setOnClickListener {
+            Toast.makeText(this, "Вы уже в окне заправки", Toast.LENGTH_SHORT).show()
+        }
+
+        history.setOnClickListener {
+            val intent = Intent(this@MainActivityRefueling, MainActivityHistoryRef::class.java)
+            startActivity(intent)
         }
     }
 
@@ -525,4 +538,6 @@ class MainActivityRefueling : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>) {}
         }
     }
+
+
 }

@@ -13,8 +13,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
+import com.github.mikephil.charting.charts.BarChart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -47,6 +49,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var spinnerContainer: LinearLayout
     private lateinit var mainContainer: ConstraintLayout
 
+    private lateinit var carCardView: CardView
+
+    private lateinit var textView_Car: TextView
+
     var connect: Connection? = null
     var connectionResult: String = ""
 
@@ -74,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         setupClickListeners()
         setupCarCardClickListener()
         restoreLastSelectedCar()
+        setupCarTooltip()
     }
 
     private fun initViews() {
@@ -90,8 +97,9 @@ class MainActivity : AppCompatActivity() {
         carSpinner = findViewById(R.id.carSpinner)
         spinnerContainer = findViewById(R.id.spinnerContainer)
         mainContainer = findViewById(R.id.main)
-
+        textView_Car = findViewById(R.id.textView8)
         spinnerContainer.visibility = View.GONE
+        carCardView = findViewById(R.id.carCardView)
     }
 
     private fun setupStatusBarColors() {
@@ -244,6 +252,35 @@ class MainActivity : AppCompatActivity() {
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
+    }
+    private fun showTooltip(view: View, message: String) {
+        try {
+
+            Toast.makeText(
+                this,
+                message,
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Log.e("Tooltip", "Error showing tooltip: ${e.message}", e)
+        }
+    }
+
+    private fun setupCarTooltip() {
+        textView_Car.setOnLongClickListener {
+            val message = "Нажмите для выбора другого автомобиля".trimIndent()
+            showTooltip(it, message)
+            true
+        }
+
+        carCardView.setOnLongClickListener {
+            val message = "Нажмите для редактирования информации об автомобиле".trimIndent()
+            showTooltip(it, message)
+            true
+        }
+
+
     }
 
     private fun restoreLastSelectedCar() {
@@ -298,7 +335,7 @@ class MainActivity : AppCompatActivity() {
             val bitmap = BitmapFactory.decodeByteArray(car.photoBytes, 0, car.photoBytes.size)
             imageView.setImageBitmap(bitmap)
         } else {
-            imageView.setImageResource(R.drawable.add_photo)
+            imageView.setImageResource(R.drawable.ph)
         }
     }
 
@@ -306,7 +343,7 @@ class MainActivity : AppCompatActivity() {
         textView_Brand.text = "Нет автомобилей"
         textView_Name.text = "Добавьте первый автомобиль"
         textView_Probeg.text = "0 км"
-        imageView.setImageResource(R.drawable.add_photo)
+        imageView.setImageResource(R.drawable.ph)
 
         sharedPreferences.edit()
             .remove(PREF_CAR_ID)

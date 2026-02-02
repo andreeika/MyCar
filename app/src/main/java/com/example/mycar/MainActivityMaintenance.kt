@@ -1,10 +1,10 @@
 package com.example.mycar
 
 import android.app.DatePickerDialog
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
 import android.view.View
 import android.widget.*
@@ -27,10 +27,15 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var mileageEditText: EditText
     private lateinit var amountEditText: EditText
     private lateinit var nextServiceMileageEditText: EditText
+    private lateinit var nextServiceDateEditText: EditText
     private lateinit var descriptionEditText: EditText
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
+    private lateinit var imageViewStatistics: ImageView
+    private lateinit var imageViewRefueling: ImageView
+    private lateinit var imageViewMaintenance: ImageView
 
+    private lateinit var history: ImageView
     private val serviceTypes = mutableListOf<ServiceType>()
     private val categories = mutableListOf<ServiceCategory>()
     private var selectedServiceTypeId: Int = 0
@@ -39,6 +44,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivityMaintenance"
         private const val PREF_CAR_ID = "current_car_id"
+        private const val AVG_YEARLY_MILEAGE = 15000 // Средний годовой пробег в км
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,14 +64,17 @@ class MainActivityMaintenance : AppCompatActivity() {
         dateEditText = findViewById(R.id.dateEditText)
         mileageEditText = findViewById(R.id.mileageEditText)
         amountEditText = findViewById(R.id.amountEditText)
-        nextServiceMileageEditText = findViewById(R.id.nextServiceDateEditText)
+        nextServiceMileageEditText = findViewById(R.id.nextServiceMileageEditText)
+        nextServiceDateEditText = findViewById(R.id.nextServiceDateEditText)
         descriptionEditText = findViewById(R.id.descriptionEditText)
         addMaintenanceButton = findViewById(R.id.addMaintenanceButton)
         cancelImageView = findViewById(R.id.imageViewCancel)
+        history = findViewById(R.id.imageView12)
 
-        mileageEditText.hint = "Текущий пробег, км"
-        amountEditText.hint = "0.00"
-        nextServiceMileageEditText.hint = "Следующий пробег, км"
+
+        imageViewStatistics = findViewById(R.id.imageView7)
+        imageViewRefueling = findViewById(R.id.imageView4)
+        imageViewMaintenance = findViewById(R.id.imageView5)
     }
 
     private fun setupStatusBarColors() {
@@ -103,7 +112,7 @@ class MainActivityMaintenance : AppCompatActivity() {
 
         mileageEditText.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {
-                calculateNextServiceMileage()
+                calculateNextServiceInfo()
             }
         }
 
@@ -111,20 +120,42 @@ class MainActivityMaintenance : AppCompatActivity() {
             showDatePicker(dateEditText)
         }
 
-        nextServiceMileageEditText.setOnClickListener {
-            // Можете добавить дополнительную логику здесь
+        nextServiceMileageEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                calculateNextServiceDateFromMileage()
+            }
+        }
+
+        nextServiceDateEditText.setOnClickListener {
+            showDatePicker(nextServiceDateEditText)
+        }
+
+        imageViewStatistics.setOnClickListener {
+            val intent = Intent(this@MainActivityMaintenance, MainActivityStatistics::class.java)
+            startActivity(intent)
+        }
+
+        imageViewRefueling.setOnClickListener {
+            val intent = Intent(this@MainActivityMaintenance, MainActivityRefueling::class.java)
+            startActivity(intent)
+        }
+
+        imageViewMaintenance.setOnClickListener {
+            Toast.makeText(this, "Вы уже в окне обслуживания", Toast.LENGTH_SHORT).show()
+        }
+
+        history.setOnClickListener {
+            val intent = Intent(this@MainActivityMaintenance, MainActivityHistoryMainte::class.java)
+            startActivity(intent)
         }
     }
 
     private fun handleServiceTypeSelection(position: Int) {
-        // Получаем реальную позицию сервиса в списке serviceTypes
-        // Пропускаем заголовки категорий в спиннере
         var serviceIndex = -1
         var itemCount = 0
 
         for ((catIndex, category) in categories.withIndex()) {
             if (position == itemCount) {
-                // Это заголовок категории - не выбираем
                 return
             }
             itemCount++
@@ -144,7 +175,7 @@ class MainActivityMaintenance : AppCompatActivity() {
             selectedServiceTypeId = serviceTypes[serviceIndex].serviceTypeId
             val selectedService = serviceTypes[serviceIndex].name
             Log.d(TAG, "Selected service type: $selectedService (ID: $selectedServiceTypeId)")
-            calculateNextServiceMileage()
+            calculateNextServiceInfo()
         }
     }
 
@@ -155,6 +186,11 @@ class MainActivityMaintenance : AppCompatActivity() {
             selectedDate.set(year, month, day)
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
             editText.setText(dateFormat.format(selectedDate.time))
+
+            // Если это дата следующего обслуживания, пересчитываем пробег
+            if (editText.id == R.id.nextServiceMileageEditText) {
+                calculateNextServiceMileageFromDate()
+            }
         }
 
         DatePickerDialog(
@@ -166,7 +202,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         ).show()
     }
 
-    private fun calculateNextServiceMileage() {
+    private fun calculateNextServiceInfo() {
         if (selectedServiceTypeId == 0 || mileageEditText.text.toString().trim().isEmpty()) return
 
         try {
@@ -177,12 +213,92 @@ class MainActivityMaintenance : AppCompatActivity() {
                 if (service.intervalKm > 0) {
                     val nextServiceMileage = currentMileage + service.intervalKm
                     nextServiceMileageEditText.setText(nextServiceMileage.toString())
+
+                    // Рассчитываем примерную дату следующего обслуживания
+                    calculateNextServiceDate(nextServiceMileage, currentMileage)
                 } else {
                     nextServiceMileageEditText.text.clear()
+                    nextServiceDateEditText.text.clear()
                 }
             }
         } catch (e: NumberFormatException) {
             Log.e(TAG, "Error calculating next service mileage: ${e.message}")
+        }
+    }
+
+    private fun calculateNextServiceDate(nextServiceMileage: Int, currentMileage: Int) {
+        try {
+            val mileageDifference = nextServiceMileage - currentMileage
+            val monthsUntilNextService = (mileageDifference.toFloat() / AVG_YEARLY_MILEAGE * 12).toInt()
+
+            if (monthsUntilNextService > 0) {
+                val currentDateText = dateEditText.text.toString().trim()
+                if (currentDateText.isNotEmpty()) {
+                    val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                    val currentDate = dateFormat.parse(currentDateText)
+
+                    if (currentDate != null) {
+                        val calendar = Calendar.getInstance()
+                        calendar.time = currentDate
+                        calendar.add(Calendar.MONTH, monthsUntilNextService)
+
+                        val nextServiceDate = dateFormat.format(calendar.time)
+                        nextServiceDateEditText.setText(nextServiceDate)
+                        return
+                    }
+                }
+            }
+
+            // Если не удалось рассчитать, оставляем поле пустым
+            nextServiceDateEditText.text.clear()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating next service date: ${e.message}")
+            nextServiceDateEditText.text.clear()
+        }
+    }
+
+    private fun calculateNextServiceDateFromMileage() {
+        try {
+            val nextServiceMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
+            val currentMileage = mileageEditText.text.toString().trim().toIntOrNull()
+
+            if (nextServiceMileage != null && currentMileage != null && nextServiceMileage > currentMileage) {
+                calculateNextServiceDate(nextServiceMileage, currentMileage)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating date from mileage: ${e.message}")
+        }
+    }
+
+    private fun calculateNextServiceMileageFromDate() {
+        try {
+            val nextServiceDateText = nextServiceDateEditText.text.toString().trim()
+            val currentDateText = dateEditText.text.toString().trim()
+            val currentMileage = mileageEditText.text.toString().trim().toIntOrNull()
+
+            if (nextServiceDateText.isNotEmpty() && currentDateText.isNotEmpty() && currentMileage != null) {
+                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                val currentDate = dateFormat.parse(currentDateText)
+                val nextDate = dateFormat.parse(nextServiceDateText)
+
+                if (currentDate != null && nextDate != null) {
+                    val calendarCurrent = Calendar.getInstance()
+                    val calendarNext = Calendar.getInstance()
+                    calendarCurrent.time = currentDate
+                    calendarNext.time = nextDate
+
+                    val monthsDifference = (calendarNext.get(Calendar.YEAR) - calendarCurrent.get(Calendar.YEAR)) * 12 +
+                            (calendarNext.get(Calendar.MONTH) - calendarCurrent.get(Calendar.MONTH))
+
+                    if (monthsDifference > 0) {
+                        val mileageToAdd = (monthsDifference.toFloat() / 12 * AVG_YEARLY_MILEAGE).toInt()
+                        val nextServiceMileage = currentMileage + mileageToAdd
+                        nextServiceMileageEditText.setText(nextServiceMileage.toString())
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error calculating mileage from date: ${e.message}")
         }
     }
 
@@ -193,7 +309,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Загружаем категории
                     val categoryQuery = """
                         SELECT category_id, name 
                         FROM ServiceCategory 
@@ -212,7 +327,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                     categoryResultSet.close()
                     categoryStatement.close()
 
-                    // Загружаем сервисы с JOIN по category_id
                     val serviceQuery = """
                         SELECT st.service_type_id, st.name, st.category_id, st.interval_km, sc.name as category_name
                         FROM ServiceTypes st
@@ -257,10 +371,8 @@ class MainActivityMaintenance : AppCompatActivity() {
     private fun updateServiceTypeSpinner() {
         val serviceTypeItems = mutableListOf<String>()
 
-        // Группируем сервисы по категориям
         val servicesByCategory = serviceTypes.groupBy { it.categoryId }
 
-        // Создаем список для спиннера с заголовками категорий
         for (category in categories) {
             val categoryServices = servicesByCategory[category.categoryId]
             if (categoryServices != null && categoryServices.isNotEmpty()) {
@@ -302,6 +414,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         val mileage = mileageEditText.text.toString().trim().toInt()
         val amount = amountEditText.text.toString().trim().toDoubleOrNull() ?: 0.0
         val nextServiceMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
+        val nextServiceDate = nextServiceDateEditText.text.toString().trim()
         val description = descriptionEditText.text.toString().trim()
         val carId = getCurrentCarId()
 
@@ -316,8 +429,9 @@ class MainActivityMaintenance : AppCompatActivity() {
                     try {
                         val insertQuery = """
                         INSERT INTO Maintenance 
-                        (car_id, service_type_id, date, mileage, total_amount, description, next_service_date) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (car_id, service_type_id, date, mileage, total_amount, description, 
+                         next_service_mileage, next_service_date) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """
 
                         val preparedStatement: PreparedStatement = connect.prepareStatement(insertQuery)
@@ -332,6 +446,12 @@ class MainActivityMaintenance : AppCompatActivity() {
                             preparedStatement.setInt(7, nextServiceMileage)
                         } else {
                             preparedStatement.setNull(7, java.sql.Types.INTEGER)
+                        }
+
+                        if (nextServiceDate.isNotEmpty()) {
+                            preparedStatement.setString(8, nextServiceDate)
+                        } else {
+                            preparedStatement.setNull(8, java.sql.Types.VARCHAR)
                         }
 
                         val rowsAffected = preparedStatement.executeUpdate()
@@ -427,6 +547,12 @@ class MainActivityMaintenance : AppCompatActivity() {
         val nextMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
         if (nextMileage != null && nextMileage <= mileage) {
             showError("Следующий пробег должен быть больше текущего", nextServiceMileageEditText)
+            return false
+        }
+
+        val nextServiceDate = nextServiceDateEditText.text.toString().trim()
+        if (nextServiceDate.isNotEmpty() && !isValidDate(nextServiceDate)) {
+            showError("Неверный формат даты следующего обслуживания", nextServiceDateEditText)
             return false
         }
 

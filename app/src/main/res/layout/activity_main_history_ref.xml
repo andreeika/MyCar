@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#E4F1FF"
+    tools:context=".MainActivityHistoryRef">
+
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="История заправок"
+        android:textColor="#228BE6"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.022" />
+
+
+    <ImageView
+        android:id="@+id/imageViewCancel"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="Отмена"
+        android:tint="#228BE6"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.956"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.01999998"
+        app:srcCompat="@drawable/cancel" />
+
+
+        <!-- Список заправок -->
+    <ListView
+        android:id="@+id/listViewRefuelings"
+        android:layout_width="380dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:divider="@color/grey"
+        android:dividerHeight="1dp"
+        android:padding="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+        <!-- Сообщение при пустом списке -->
+    <TextView
+        android:id="@+id/emptyTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:text="Нет данных"
+        android:textColor="@color/grey"
+        android:textSize="18sp"
+        android:visibility="gone" />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

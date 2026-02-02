@@ -191,7 +191,7 @@ class MainActivityStatistics : AppCompatActivity() {
             // круговая диаграмма
             pieChart.setUsePercentValues(true)
             pieChart.description.isEnabled = false
-            pieChart.setExtraOffsets(5f, 10f, 5f, 5f)
+            pieChart.setExtraOffsets(0f, 0f, 0f, 0f)
             pieChart.dragDecelerationFrictionCoef = 0.95f
             pieChart.isDrawHoleEnabled = false
             pieChart.setHoleColor(Color.WHITE)
@@ -200,7 +200,7 @@ class MainActivityStatistics : AppCompatActivity() {
             pieChart.holeRadius = 58f
             pieChart.transparentCircleRadius = 61f
             pieChart.setDrawCenterText(false)
-            pieChart.rotationAngle = 0f
+            pieChart.rotationAngle = 15f
             pieChart.isRotationEnabled = true
             pieChart.isHighlightPerTapEnabled = true
             pieChart.legend.isEnabled = true
@@ -492,43 +492,131 @@ class MainActivityStatistics : AppCompatActivity() {
         val connect = connectionHelper.connectionclass() ?: return emptyMap()
 
         return try {
+            // Основной расчет для заправок с полным баком
             val query = """
+            WITH FullTankRefuels AS (
                 SELECT 
-                    SUM(r.total_amount) as fuel_cost,
-                    COUNT(*) as refuel_count,
-                    MAX(r.mileage) - MIN(r.mileage) as distance,
-                    SUM(r.volume) as total_volume
-                FROM Refueling r 
-                WHERE r.car_id = $carId 
-                AND CONVERT(date, r.date, 104) BETWEEN CONVERT(date, '$dateFrom', 104) AND CONVERT(date, '$dateTo', 104)
-            """
+                    date,
+                    mileage,
+                    volume,
+                    total_amount,
+                    LAG(mileage) OVER (ORDER BY date, mileage) as prev_mileage,
+                    LAG(date) OVER (ORDER BY date, mileage) as prev_date
+                FROM Refueling 
+                WHERE car_id = $carId 
+                    AND full_tank = 1
+                    AND CONVERT(DATE, date, 104) 
+                        BETWEEN CONVERT(DATE, '$dateFrom', 104) 
+                        AND CONVERT(DATE, '$dateTo', 104)
+            )
+            SELECT 
+                SUM(CASE 
+                    WHEN mileage > prev_mileage AND prev_mileage IS NOT NULL 
+                    THEN mileage - prev_mileage 
+                    ELSE 0 
+                END) as total_distance,
+                SUM(volume) as total_volume,
+                SUM(total_amount) as total_fuel_cost,
+                COUNT(*) as full_tank_count
+            FROM FullTankRefuels
+        """
 
-            val statement: Statement = connect.createStatement()
-            val resultSet: ResultSet = statement.executeQuery(query)
+            val stmt: Statement = connect.createStatement()
+            val rs: ResultSet = stmt.executeQuery(query)
 
             val consumptionData = mutableMapOf<String, Double>()
-            if (resultSet.next()) {
-                val fuelCost = resultSet.getDouble("fuel_cost")
-                val distance = resultSet.getDouble("distance")
-                val totalVolume = resultSet.getDouble("total_volume")
 
-                val avgConsumption = if (distance > 0) (totalVolume / distance * 100) else 0.0
-                val costPerKm = if (distance > 0) fuelCost / distance else 0.0
+            if (rs.next()) {
+                val totalDistance = rs.getDouble("total_distance")
+                val totalVolume = rs.getDouble("total_volume")
+                val totalFuelCost = rs.getDouble("total_fuel_cost")
+                val fullTankCount = rs.getInt("full_tank_count")
 
-                consumptionData["avg_consumption"] = avgConsumption
-                consumptionData["cost_per_km"] = costPerKm
-                consumptionData["distance"] = distance
-                consumptionData["total_volume"] = totalVolume
+                // Если нет заправок с полным баком или их недостаточно, используем общие данные
+                if (fullTankCount >= 2 && totalDistance > 0) {
+                    // Точный расчет по полным бакам
+                    val avgConsumption = (totalVolume / totalDistance) * 100
+                    val costPerKm = totalFuelCost / totalDistance
+
+                    consumptionData["avg_consumption"] = avgConsumption
+                    consumptionData["cost_per_km"] = costPerKm
+                    consumptionData["distance"] = totalDistance
+                    consumptionData["total_volume"] = totalVolume
+                    consumptionData["total_fuel_cost"] = totalFuelCost
+                } else {
+                    // Запасной вариант: расчет по всем заправкам
+                    calculateAlternativeFuelConsumption(connect, carId, dateFrom, dateTo, consumptionData)
+                }
+            } else {
+                // Если нет данных в первом запросе
+                calculateAlternativeFuelConsumption(connect, carId, dateFrom, dateTo, consumptionData)
             }
 
-            resultSet.close()
-            statement.close()
+            rs.close()
+            stmt.close()
             connect.close()
 
             consumptionData
         } catch (ex: Exception) {
             Log.e("Statistics", "Error in calculateFuelConsumption: ${ex.message}", ex)
-            emptyMap()
+            Log.e("Statistics", "Stack trace: ${ex.stackTraceToString()}")
+
+            // В случае ошибки возвращаем значения по умолчанию
+            val defaultData = mutableMapOf<String, Double>()
+            defaultData["avg_consumption"] = 0.0
+            defaultData["cost_per_km"] = 0.0
+            defaultData["distance"] = 0.0
+            defaultData["total_volume"] = 0.0
+            defaultData["total_fuel_cost"] = 0.0
+            defaultData
+        }
+    }
+
+    private fun calculateAlternativeFuelConsumption(
+        connect: java.sql.Connection,
+        carId: Int,
+        dateFrom: String,
+        dateTo: String,
+        consumptionData: MutableMap<String, Double>
+    ) {
+        try {
+            // Альтернативный расчет по всем заправкам
+            val altQuery = """
+            SELECT 
+                COALESCE(MAX(mileage) - MIN(mileage), 0) as total_distance,
+                COALESCE(SUM(volume), 0) as total_volume,
+                COALESCE(SUM(total_amount), 0) as total_fuel_cost,
+                COUNT(*) as total_refuels
+            FROM Refueling 
+            WHERE car_id = $carId 
+                AND CONVERT(DATE, date, 104) 
+                    BETWEEN CONVERT(DATE, '$dateFrom', 104) 
+                    AND CONVERT(DATE, '$dateTo', 104)
+        """
+
+            val altStmt: Statement = connect.createStatement()
+            val altRs: ResultSet = altStmt.executeQuery(altQuery)
+
+            if (altRs.next()) {
+                val totalDistance = altRs.getDouble("total_distance")
+                val totalVolume = altRs.getDouble("total_volume")
+                val totalFuelCost = altRs.getDouble("total_fuel_cost")
+
+                val avgConsumption = if (totalDistance > 0) (totalVolume / totalDistance) * 100 else 0.0
+                val costPerKm = if (totalDistance > 0) totalFuelCost / totalDistance else 0.0
+
+                consumptionData["avg_consumption"] = avgConsumption
+                consumptionData["cost_per_km"] = costPerKm
+                consumptionData["distance"] = totalDistance
+                consumptionData["total_volume"] = totalVolume
+                consumptionData["total_fuel_cost"] = totalFuelCost
+            }
+
+            altRs.close()
+            altStmt.close()
+
+        } catch (ex: Exception) {
+            Log.e("Statistics", "Error in alternative calculation: ${ex.message}", ex)
         }
     }
 
@@ -539,15 +627,19 @@ class MainActivityStatistics : AppCompatActivity() {
             val maintenanceExpenses = statistics["maintenance_expenses"] ?: 0.0
             val totalMileage = statistics["total_mileage"] ?: 0.0
 
+            // Используем distance из calculateFuelConsumption, а не total_mileage
+            val distance = fuelConsumption["distance"] ?: 0.0
             val avgConsumption = fuelConsumption["avg_consumption"] ?: 0.0
             val costPerKm = fuelConsumption["cost_per_km"] ?: 0.0
 
-            textViewTotalExpenses.text = "%,d".format(totalExpenses.toInt())
-            textViewFuelExpenses.text = "%,d".format(fuelExpenses.toInt())
-            textViewMaintenanceExpenses.text = "%,d".format(maintenanceExpenses.toInt())
-            textViewCostPerKm.text = "%.1f".format(costPerKm)
-            textViewMileage.text = "%,d".format(totalMileage.toInt())
-            textViewFuelConsumption.text = "%.1f".format(avgConsumption)
+            textViewTotalExpenses.text = "%,d руб".format(totalExpenses.toInt())
+            textViewFuelExpenses.text = "%,d руб".format(fuelExpenses.toInt())
+            textViewMaintenanceExpenses.text = "%,d руб".format(maintenanceExpenses.toInt())
+
+            // Форматируем с 2 знаками после запятой для точности
+            textViewCostPerKm.text = "%.2f руб/км".format(costPerKm)
+            textViewMileage.text = "%,d км".format(distance.toInt())
+            textViewFuelConsumption.text = "%.1f л/100км".format(avgConsumption)
 
             updatePieChart(fuelExpenses, maintenanceExpenses)
             updateLineChart(monthlyStats)
@@ -592,15 +684,6 @@ class MainActivityStatistics : AppCompatActivity() {
                     }
                 }
 
-                override fun getPieLabel(value: Float, pieEntry: PieEntry?): String {
-                    val label = pieEntry?.label ?: ""
-                    val amount = pieEntry?.value ?: 0f
-                    return if (pieChart.isUsePercentValuesEnabled) {
-                        "$label\n${value.toInt()}%"
-                    } else {
-                        "$label\n%,d руб.".format(amount.toInt())
-                    }
-                }
             })
 
             pieChart.data = data

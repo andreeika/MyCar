@@ -93,12 +93,10 @@ class MainActivityNotifications : AppCompatActivity() {
     private fun loadNotifications() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Получаем ID текущего автомобиля
+
                 val currentCarId = sharedPreferences.getInt("current_car_id", -1)
 
-                // Получаем уведомления для текущего автомобиля
                 val urgentNotifications = if (currentCarId > 0) {
-                    // Если выбран конкретный автомобиль, фильтруем уведомления
                     filterNotificationsByCar(notificationManager.getUrgentNotifications(this@MainActivityNotifications), currentCarId)
                 } else {
                     // Если автомобиль не выбран, показываем все уведомления пользователя
@@ -129,7 +127,6 @@ class MainActivityNotifications : AppCompatActivity() {
         }
     }
 
-    // Вспомогательная функция для фильтрации уведомлений по автомобилю
     private fun filterNotificationsByCar(notifications: List<Notification>, carId: Int): List<Notification> {
         return notifications.filter { it.carId == carId }
     }
@@ -170,17 +167,13 @@ class MainActivityNotifications : AppCompatActivity() {
             NotificationType.INFO -> showInfoDialog(notification)
         }
 
-        // Помечаем уведомление как прочитанное в SharedPreferences
         sharedPreferences.edit().putBoolean("notification_${notification.id}", true).apply()
 
-        // Вызываем метод NotificationManager
         notificationManager.markAsRead(notification.id)
 
-        // Перезагружаем уведомления, чтобы обновить статус "прочитано"
         loadNotifications()
     }
 
-    // Проверка, прочитано ли уведомление
     private fun isNotificationRead(notificationId: Int): Boolean {
         return sharedPreferences.getBoolean("notification_$notificationId", false)
     }
@@ -190,7 +183,6 @@ class MainActivityNotifications : AppCompatActivity() {
             .setTitle("⚠️ " + notification.title)
             .setMessage("${notification.message}\n\nАвтомобиль: ${notification.carName}")
             .setPositiveButton("Перейти к обслуживанию") { dialog, which ->
-                // Можно добавить переход к экрану обслуживания
                 Toast.makeText(this, "Переход к обслуживанию", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Закрыть", null)
@@ -202,7 +194,6 @@ class MainActivityNotifications : AppCompatActivity() {
             .setTitle("🔧 " + notification.title)
             .setMessage("${notification.message}\n\nАвтомобиль: ${notification.carName}")
             .setPositiveButton("Запланировать ТО") { dialog, which ->
-                // Можно добавить переход к планированию ТО
                 Toast.makeText(this, "Планирование ТО", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Позже", null)
@@ -264,10 +255,9 @@ class MainActivityNotifications : AppCompatActivity() {
             holder.textViewTitle.text = notification.title
             holder.textViewMessage.text = notification.message
             holder.textViewDate.text = dateFormat.format(notification.date)
-            holder.textViewCarInfo.text = notification.carName  // Теперь здесь будет правильное название авто
+            holder.textViewCarInfo.text = notification.carName
             holder.divider.visibility = if (position == notifications.size - 1) View.GONE else View.VISIBLE
 
-            // Проверяем статус прочтения через SharedPreferences
             val context = holder.itemView.context
             val sharedPrefs = context.getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
             val isRead = sharedPrefs.getBoolean("notification_${notification.id}", false)
@@ -288,7 +278,6 @@ class MainActivityNotifications : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Обновляем уведомления при возвращении на экран
         loadNotifications()
     }
 }

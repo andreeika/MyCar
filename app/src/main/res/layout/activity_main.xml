@@ -14,6 +14,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
+        android:longClickable="true"
         android:text="Моя машина"
         android:textColor="#228BE6"
         android:textSize="24sp"
@@ -41,14 +42,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView8">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Выберите автомобиль:"
-            android:textSize="16sp"
-            android:textStyle="bold" />
 
         <Spinner
             android:id="@+id/carSpinner"
@@ -99,18 +92,18 @@
 
     <ImageView
         android:id="@+id/imageView"
-        android:layout_width="220dp"
-        android:layout_height="170dp"
-        android:layout_marginTop="32dp"
+        android:layout_width="180dp"
+        android:layout_height="180dp"
+        android:layout_marginTop="24dp"
         android:padding="4dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/add_photo"
+        android:src="@drawable/ph"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView8"
-        app:layout_constraintVertical_bias="0.0"
+        app:layout_constraintVertical_bias="0.01"
         app:strokeColor="#228BE6"
         app:strokeWidth="2dp" />
 
@@ -121,6 +114,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
+        android:longClickable="true"
         app:cardBackgroundColor="@android:color/white"
         app:cardCornerRadius="10dp"
         app:cardElevation="10dp"
@@ -221,6 +215,19 @@
                 app:layout_constraintTop_toBottomOf="@+id/textView"
                 app:layout_constraintVertical_bias="0.23" />
 
+            <TextView
+                android:id="@+id/textView9"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Изменить"
+                android:textAlignment="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.948"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.95" />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -274,5 +281,17 @@
                 app:srcCompat="@drawable/service" />
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
+
+    <ImageView
+        android:id="@+id/imageView9"
+        android:layout_width="210dp"
+        android:layout_height="210dp"
+        app:layout_constraintBottom_toBottomOf="@+id/cardView"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView8"
+        app:layout_constraintVertical_bias="0.03"
+        app:srcCompat="@drawable/group" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
