@@ -35,23 +35,23 @@ class NotificationManager {
                 if (connect != null) {
                     val carsQuery = if (currentCarId > 0) {
                         """
-                        SELECT c.car_id, c.mileage as current_mileage, 
-                               cb.name as brand_name, cm.name as model_name
-                        FROM Cars c
-                        LEFT JOIN CarModels cm ON c.model_id = cm.model_id
-                        LEFT JOIN CarBrands cb ON cm.brand_id = cb.brand_id
-                        WHERE c.user_id = $userId AND c.car_id = $currentCarId
-                        """
+                    SELECT c.car_id, c.mileage as current_mileage, 
+                           cb.name as brand_name, cm.name as model_name
+                    FROM Cars c
+                    LEFT JOIN CarModels cm ON c.model_id = cm.model_id
+                    LEFT JOIN CarBrands cb ON cm.brand_id = cb.brand_id
+                    WHERE c.user_id = $userId AND c.car_id = $currentCarId
+                    """
                     } else {
                         """
-                        SELECT c.car_id, c.mileage as current_mileage, 
-                               cb.name as brand_name, cm.name as model_name
-                        FROM Cars c
-                        LEFT JOIN CarModels cm ON c.model_id = cm.model_id
-                        LEFT JOIN CarBrands cb ON cm.brand_id = cb.brand_id
-                        WHERE c.user_id = $userId
-                        ORDER BY c.car_id
-                        """
+                    SELECT c.car_id, c.mileage as current_mileage, 
+                           cb.name as brand_name, cm.name as model_name
+                    FROM Cars c
+                    LEFT JOIN CarModels cm ON c.model_id = cm.model_id
+                    LEFT JOIN CarBrands cb ON cm.brand_id = cb.brand_id
+                    WHERE c.user_id = $userId
+                    ORDER BY c.car_id
+                    """
                     }
 
                     val carsStatement: Statement = connect.createStatement()
@@ -70,25 +70,28 @@ class NotificationManager {
                         processedCars.add(carId)
 
                         val overdueQuery = """
-                            SELECT st.service_type_id, st.name as service_name, st.internal_km,
-                                   COALESCE(MAX(m.mileage), 0) as last_service_mileage
-                            FROM ServiceTypes st
-                            LEFT JOIN Maintenance m ON st.service_type_id = m.service_type_id AND m.car_id = $carId
-                            WHERE st.internal_km > 0
-                            GROUP BY st.service_type_id, st.name, st.internal_km
-                            HAVING COALESCE(MAX(m.mileage), 0) + st.internal_km < $currentMileage
-                        """
+                        SELECT m.maintenance_id, m.service_type_id, st.name as service_name,
+                               m.mileage as last_service_mileage, m.next_service_mileage
+                        FROM Maintenance m
+                        JOIN ServiceTypes st ON m.service_type_id = st.service_type_id
+                        WHERE m.car_id = $carId 
+                          AND m.next_service_mileage IS NOT NULL
+                          AND m.next_service_mileage < $currentMileage
+                        ORDER BY m.next_service_mileage ASC
+                    """
 
                         val overdueStatement: Statement = connect.createStatement()
                         val overdueResult: ResultSet = overdueStatement.executeQuery(overdueQuery)
 
                         while (overdueResult.next()) {
+                            val maintenanceId = overdueResult.getInt("maintenance_id")
+                            val serviceTypeId = overdueResult.getInt("service_type_id")
                             val serviceName = overdueResult.getString("service_name")
                             val lastServiceMileage = overdueResult.getInt("last_service_mileage")
-                            val interval = overdueResult.getInt("internal_km")
-                            val overdueBy = currentMileage - (lastServiceMileage + interval)
+                            val nextServiceMileage = overdueResult.getInt("next_service_mileage")
+                            val overdueBy = currentMileage - nextServiceMileage
 
-                            val notificationId = carId * 1000 + overdueResult.getInt("service_type_id")
+                            val notificationId = maintenanceId * 1000 + serviceTypeId
 
                             notifications.add(
                                 MainActivityNotifications.Notification(
@@ -97,6 +100,7 @@ class NotificationManager {
                                     title = "ПРОСРОЧЕНО: $serviceName",
                                     message = "$carName: Обслуживание '$serviceName' просрочено на $overdueBy км. " +
                                             "Последнее обслуживание было на пробеге $lastServiceMileage км. " +
+                                            "Следующее было запланировано на $nextServiceMileage км. " +
                                             "Текущий пробег: $currentMileage км.",
                                     carId = carId,
                                     carName = carName,
@@ -109,26 +113,29 @@ class NotificationManager {
                         overdueStatement.close()
 
                         val urgentQuery = """
-                            SELECT st.service_type_id, st.name as service_name, st.internal_km,
-                                   COALESCE(MAX(m.mileage), 0) as last_service_mileage
-                            FROM ServiceTypes st
-                            LEFT JOIN Maintenance m ON st.service_type_id = m.service_type_id AND m.car_id = $carId
-                            WHERE st.internal_km > 0
-                            GROUP BY st.service_type_id, st.name, st.internal_km
-                            HAVING COALESCE(MAX(m.mileage), 0) + st.internal_km - $currentMileage BETWEEN 1 AND 500
-                            ORDER BY COALESCE(MAX(m.mileage), 0) + st.internal_km - $currentMileage ASC
-                        """
+                        SELECT m.maintenance_id, m.service_type_id, st.name as service_name,
+                               m.mileage as last_service_mileage, m.next_service_mileage
+                        FROM Maintenance m
+                        JOIN ServiceTypes st ON m.service_type_id = st.service_type_id
+                        WHERE m.car_id = $carId 
+                          AND m.next_service_mileage IS NOT NULL
+                          AND m.next_service_mileage > $currentMileage
+                          AND m.next_service_mileage - $currentMileage BETWEEN 1 AND 500
+                        ORDER BY m.next_service_mileage ASC
+                    """
 
                         val urgentStatement: Statement = connect.createStatement()
                         val urgentResult: ResultSet = urgentStatement.executeQuery(urgentQuery)
 
                         while (urgentResult.next()) {
+                            val maintenanceId = urgentResult.getInt("maintenance_id")
+                            val serviceTypeId = urgentResult.getInt("service_type_id")
                             val serviceName = urgentResult.getString("service_name")
                             val lastServiceMileage = urgentResult.getInt("last_service_mileage")
-                            val interval = urgentResult.getInt("internal_km")
-                            val remainingKm = (lastServiceMileage + interval) - currentMileage
+                            val nextServiceMileage = urgentResult.getInt("next_service_mileage")
+                            val remainingKm = nextServiceMileage - currentMileage
 
-                            val notificationId = carId * 1000 + urgentResult.getInt("service_type_id") + 10000
+                            val notificationId = maintenanceId * 1000 + serviceTypeId + 10000
 
                             notifications.add(
                                 MainActivityNotifications.Notification(
@@ -136,6 +143,8 @@ class NotificationManager {
                                     type = MainActivityNotifications.NotificationType.URGENT,
                                     title = "СРОЧНО: $serviceName",
                                     message = "$carName: Обслуживание '$serviceName' требуется через $remainingKm км. " +
+                                            "Последнее обслуживание было на пробеге $lastServiceMileage км. " +
+                                            "Следующее запланировано на $nextServiceMileage км. " +
                                             "Текущий пробег: $currentMileage км.",
                                     carId = carId,
                                     carName = carName,
@@ -146,13 +155,67 @@ class NotificationManager {
                         }
                         urgentResult.close()
                         urgentStatement.close()
+
+                        if (notifications.isEmpty()) {
+                            val newServicesQuery = """
+                            SELECT st.service_type_id, st.name as service_name, st.interval_km,
+                                   COALESCE(MAX(m.mileage), 0) as last_service_mileage
+                            FROM ServiceTypes st
+                            LEFT JOIN Maintenance m ON st.service_type_id = m.service_type_id AND m.car_id = $carId
+                            WHERE st.interval_km > 0
+                            GROUP BY st.service_type_id, st.name, st.interval_km
+                            HAVING (
+                                -- Просроченные (используем interval_km)
+                                (MAX(m.mileage) > 0 AND MAX(m.mileage) + st.interval_km < $currentMileage)
+                                OR
+                                -- Срочные (осталось 1-500 км)
+                                (MAX(m.mileage) > 0 AND MAX(m.mileage) + st.interval_km - $currentMileage BETWEEN 1 AND 500)
+                            )
+                            ORDER BY COALESCE(MAX(m.mileage), 0) + st.interval_km ASC
+                        """
+
+                            val newServicesStatement: Statement = connect.createStatement()
+                            val newServicesResult: ResultSet = newServicesStatement.executeQuery(newServicesQuery)
+
+                            while (newServicesResult.next()) {
+                                val serviceTypeId = newServicesResult.getInt("service_type_id")
+                                val serviceName = newServicesResult.getString("service_name")
+                                val interval = newServicesResult.getInt("interval_km")
+                                val lastServiceMileage = newServicesResult.getInt("last_service_mileage")
+                                val nextServiceAt = lastServiceMileage + interval
+                                val status = if (nextServiceAt < currentMileage) "OVERDUE" else "URGENT"
+                                val remainingOrOverdue = if (status == "OVERDUE") {
+                                    "просрочено на ${currentMileage - nextServiceAt} км"
+                                } else {
+                                    "требуется через ${nextServiceAt - currentMileage} км"
+                                }
+
+                                val notificationId = carId * 1000 + serviceTypeId + (if (status == "OVERDUE") 0 else 20000)
+
+                                notifications.add(
+                                    MainActivityNotifications.Notification(
+                                        id = notificationId,
+                                        type = MainActivityNotifications.NotificationType.URGENT,
+                                        title = if (status == "OVERDUE") "ПРОСРОЧЕНО: $serviceName" else "СРОЧНО: $serviceName",
+                                        message = "$carName: Обслуживание '$serviceName' $remainingOrOverdue. " +
+                                                "Последнее обслуживание было на пробеге $lastServiceMileage км. " +
+                                                "Текущий пробег: $currentMileage км.",
+                                        carId = carId,
+                                        carName = carName,
+                                        date = Date(),
+                                        actionRequired = true
+                                    )
+                                )
+                            }
+                            newServicesResult.close()
+                            newServicesStatement.close()
+                        }
                     }
 
                     carsResult.close()
                     carsStatement.close()
                     connect.close()
 
-                    // Если нет уведомлений для текущего автомобиля, показываем общее уведомление
                     if (notifications.isEmpty() && currentCarId > 0) {
                         val carInfo = getCarInfoById(context, currentCarId)
                         if (carInfo != null) {
@@ -225,14 +288,14 @@ class NotificationManager {
                         val carName = "$brandName $modelName"
 
                         val recommendationQuery = """
-                            SELECT st.service_type_id, st.name as service_name, st.internal_km,
+                            SELECT st.service_type_id, st.name as service_name, st.interval_km,
                                    COALESCE(MAX(m.mileage), 0) as last_service_mileage
                             FROM ServiceTypes st
                             LEFT JOIN Maintenance m ON st.service_type_id = m.service_type_id AND m.car_id = $carId
-                            WHERE st.internal_km > 0
-                            GROUP BY st.service_type_id, st.name, st.internal_km
-                            HAVING COALESCE(MAX(m.mileage), 0) + st.internal_km - $currentMileage BETWEEN 501 AND 2000
-                            ORDER BY COALESCE(MAX(m.mileage), 0) + st.internal_km - $currentMileage ASC
+                            WHERE st.interval_km > 0
+                            GROUP BY st.service_type_id, st.name, st.interval_km
+                            HAVING COALESCE(MAX(m.mileage), 0) + st.interval_km - $currentMileage BETWEEN 501 AND 2000
+                            ORDER BY COALESCE(MAX(m.mileage), 0) + st.interval_km - $currentMileage ASC
                         """
 
                         val recommendationStatement: Statement = connect.createStatement()
@@ -241,7 +304,7 @@ class NotificationManager {
                         while (recommendationResult.next()) {
                             val serviceName = recommendationResult.getString("service_name")
                             val lastServiceMileage = recommendationResult.getInt("last_service_mileage")
-                            val interval = recommendationResult.getInt("internal_km")
+                            val interval = recommendationResult.getInt("interval_km")
                             val remainingKm = (lastServiceMileage + interval) - currentMileage
 
                             val notificationId = carId * 1000 + recommendationResult.getInt("service_type_id") + 20000

@@ -19,7 +19,7 @@ public class ConnectionHelper {
         ServerConfig[] servers = {
                 new ServerConfig("192.168.0.180", "1433",
                         "AutoSpendingDB", "user3", "123456", "Сервер 1 (основной)"),
-                new ServerConfig("172.20.10.2", "1433",
+                new ServerConfig("172.20.10.8", "1433",
                         "AutoSpendingDB", "user4", "user123456", "Сервер 2 (ноутбук)")
         };
 

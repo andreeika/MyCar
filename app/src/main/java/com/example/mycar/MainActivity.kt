@@ -1,9 +1,11 @@
 package com.example.mycar
 
 import SessionManager
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -15,10 +17,13 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.BarChart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.sql.Connection
 import java.sql.ResultSet
@@ -81,6 +86,7 @@ class MainActivity : AppCompatActivity() {
         setupCarCardClickListener()
         restoreLastSelectedCar()
         setupCarTooltip()
+
     }
 
     private fun initViews() {
@@ -341,7 +347,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showNoCarsMessage() {
         textView_Brand.text = "Нет автомобилей"
-        textView_Name.text = "Добавьте первый автомобиль"
+        textView_Name.text = "Добавьте данные"
         textView_Probeg.text = "0 км"
         imageView.setImageResource(R.drawable.ph)
 

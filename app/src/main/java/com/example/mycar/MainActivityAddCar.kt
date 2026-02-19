@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
@@ -35,6 +36,8 @@ class MainActivityAddCar : AppCompatActivity() {
     private lateinit var mileageEditText: EditText
     private lateinit var carImageView: ImageView
     private lateinit var cancelImageView: ImageView
+
+    private lateinit var editimageView: ImageView
     private lateinit var titleTextView: TextView
 
     private val brands = mutableListOf<CarBrand>()
@@ -90,6 +93,7 @@ class MainActivityAddCar : AppCompatActivity() {
             carImageView = findViewById(R.id.imageView11)
             cancelImageView = findViewById(R.id.imageView2)
             titleTextView = findViewById(R.id.textView2)
+            editimageView = findViewById(R.id.editimageView)
             mileageEditText.hint = "Введите пробег"
 
             modelSpinner.isEnabled = false
@@ -141,6 +145,7 @@ class MainActivityAddCar : AppCompatActivity() {
                 titleTextView.text = "Добавить авто"
                 saveButton.text = "Добавить авто"
                 carImageView.setImageResource(R.drawable.ph)
+                editimageView.visibility = View.GONE
                 Log.d(TAG, "Add mode")
             }
         } catch (e: Exception) {

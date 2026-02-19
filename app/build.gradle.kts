@@ -49,6 +49,7 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
     implementation("androidx.exifinterface:exifinterface:1.3.6")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation(libs.androidx.activity)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)

@@ -91,52 +91,90 @@ class MainActivityRegister : AppCompatActivity() {
     }
 
     private fun validateInput(fullName: String, username: String, password: String, confirmPassword: String): Boolean {
-        if (fullName.isEmpty()) {
-            editTextFullName.error = "Введите ФИО"
-            editTextFullName.requestFocus()
-            return false
+        // Валидация ФИО
+        when {
+            fullName.isEmpty() -> {
+                editTextFullName.error = "Введите имя"
+                editTextFullName.requestFocus()
+                return false
+            }
+            fullName.length < 2 -> {
+                editTextFullName.error = "Имя должно содержать минимум 2 символа"
+                editTextFullName.requestFocus()
+                return false
+            }
+            fullName.trim() != fullName -> {
+                editTextFullName.error = "Уберите пробелы в начале или конце имени"
+                editTextFullName.requestFocus()
+                return false
+            }
+            fullName.contains("  ") -> {
+                editTextFullName.error = "Уберите лишние пробелы в имени"
+                editTextFullName.requestFocus()
+                return false
+            }
         }
 
-        if (fullName.length < 2) {
-            editTextFullName.error = "ФИО должно содержать минимум 2 символа"
-            editTextFullName.requestFocus()
-            return false
+        // Валидация логина
+        when {
+            username.isEmpty() -> {
+                editTextUsername.error = "Введите логин"
+                editTextUsername.requestFocus()
+                return false
+            }
+            username.length < 3 -> {
+                editTextUsername.error = "Логин должен содержать минимум 3 символа"
+                editTextUsername.requestFocus()
+                return false
+            }
+            username.contains(" ") -> {
+                editTextUsername.error = "Логин не должен содержать пробелы"
+                editTextUsername.requestFocus()
+                return false
+            }
+            username.trim() != username -> {
+                editTextUsername.error = "Уберите пробелы в начале или конце логина"
+                editTextUsername.requestFocus()
+                return false
+            }
         }
 
-        if (username.isEmpty()) {
-            editTextUsername.error = "Введите логин"
-            editTextUsername.requestFocus()
-            return false
+        // Валидация пароля
+        when {
+            password.isEmpty() -> {
+                editTextPassword.error = "Введите пароль"
+                editTextPassword.requestFocus()
+                return false
+            }
+            password.length < 4 -> {
+                editTextPassword.error = "Пароль должен содержать минимум 4 символа"
+                editTextPassword.requestFocus()
+                return false
+            }
+            password.contains(" ") -> {
+                editTextPassword.error = "Пароль не должен содержать пробелы"
+                editTextPassword.requestFocus()
+                return false
+            }
         }
 
-        if (username.length < 3) {
-            editTextUsername.error = "Логин должен содержать минимум 3 символа"
-            editTextUsername.requestFocus()
-            return false
-        }
-
-        if (password.isEmpty()) {
-            editTextPassword.error = "Введите пароль"
-            editTextPassword.requestFocus()
-            return false
-        }
-
-        if (password.length < 4) {
-            editTextPassword.error = "Пароль должен содержать минимум 4 символа"
-            editTextPassword.requestFocus()
-            return false
-        }
-
-        if (confirmPassword.isEmpty()) {
-            editTextConfirmPassword.error = "Повторите пароль"
-            editTextConfirmPassword.requestFocus()
-            return false
-        }
-
-        if (password != confirmPassword) {
-            editTextConfirmPassword.error = "Пароли не совпадают"
-            editTextConfirmPassword.requestFocus()
-            return false
+        // Валидация подтверждения пароля
+        when {
+            confirmPassword.isEmpty() -> {
+                editTextConfirmPassword.error = "Повторите пароль"
+                editTextConfirmPassword.requestFocus()
+                return false
+            }
+            confirmPassword.contains(" ") -> {
+                editTextConfirmPassword.error = "Подтверждение пароля не должно содержать пробелы"
+                editTextConfirmPassword.requestFocus()
+                return false
+            }
+            password != confirmPassword -> {
+                editTextConfirmPassword.error = "Пароли не совпадают"
+                editTextConfirmPassword.requestFocus()
+                return false
+            }
         }
 
         return true

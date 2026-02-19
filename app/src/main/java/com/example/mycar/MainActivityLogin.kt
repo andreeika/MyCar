@@ -34,7 +34,6 @@ class MainActivityLogin : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_login)
 
-        // Проверяем, авторизован ли уже пользователь
         if (sessionManager.isLoggedIn()) {
             startMainActivity()
             return

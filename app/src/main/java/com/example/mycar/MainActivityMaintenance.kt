@@ -519,12 +519,14 @@ class MainActivityMaintenance : AppCompatActivity() {
 
     private fun validateInput(): Boolean {
         if (dateEditText.text.toString().trim().isEmpty()) {
-            showError("Введите дату обслуживания", dateEditText)
+            dateEditText.error = "Введите дату обслуживания"
+            dateEditText.requestFocus()
             return false
         }
 
         if (mileageEditText.text.toString().trim().isEmpty()) {
-            showError("Введите пробег автомобиля", mileageEditText)
+            mileageEditText.error = "Введите пробег автомобиля"
+            mileageEditText.requestFocus()
             return false
         }
 
@@ -534,25 +536,29 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
 
         if (!isValidDate(dateEditText.text.toString().trim())) {
-            showError("Неверный формат даты (дд.мм.гггг)", dateEditText)
+            dateEditText.error = "Неверный формат даты (дд.мм.гггг)"
+            dateEditText.requestFocus()
             return false
         }
 
         val mileage = mileageEditText.text.toString().trim().toIntOrNull()
         if (mileage == null || mileage < 0) {
-            showError("Пробег должен быть положительным числом", mileageEditText)
+            mileageEditText.error = "Пробег должен быть положительным числом"
+            mileageEditText.requestFocus()
             return false
         }
 
         val nextMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
         if (nextMileage != null && nextMileage <= mileage) {
-            showError("Следующий пробег должен быть больше текущего", nextServiceMileageEditText)
+            nextServiceMileageEditText.error = "Следующий пробег должен быть больше текущего"
+            nextServiceMileageEditText.requestFocus()
             return false
         }
 
         val nextServiceDate = nextServiceDateEditText.text.toString().trim()
         if (nextServiceDate.isNotEmpty() && !isValidDate(nextServiceDate)) {
-            showError("Неверный формат даты следующего обслуживания", nextServiceDateEditText)
+            nextServiceDateEditText.error = "Неверный формат даты следующего обслуживания"
+            nextServiceDateEditText.requestFocus()
             return false
         }
 
