@@ -2,6 +2,7 @@ package com.example.mycar
 
 import SessionManager
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -33,6 +34,7 @@ class MainActivityAddCar : AppCompatActivity() {
     private lateinit var brandSpinner: Spinner
     private lateinit var modelSpinner: Spinner
     private lateinit var saveButton: Button
+    private lateinit var deleteButton: Button
     private lateinit var mileageEditText: EditText
     private lateinit var carImageView: ImageView
     private lateinit var cancelImageView: ImageView
@@ -54,6 +56,7 @@ class MainActivityAddCar : AppCompatActivity() {
 
     companion object {
         private const val TAG = "MainActivityAddCar"
+        private const val RESULT_CAR_DELETED = 200
     }
 
     private val pickImageLauncher = registerForActivityResult(
@@ -89,6 +92,7 @@ class MainActivityAddCar : AppCompatActivity() {
             brandSpinner = findViewById(R.id.brandSpinner)
             modelSpinner = findViewById(R.id.modelSpinner)
             saveButton = findViewById(R.id.button)
+            deleteButton = findViewById(R.id.deleteButton)
             mileageEditText = findViewById(R.id.textInputEditText)
             carImageView = findViewById(R.id.imageView11)
             cancelImageView = findViewById(R.id.imageView2)
@@ -98,6 +102,9 @@ class MainActivityAddCar : AppCompatActivity() {
 
             modelSpinner.isEnabled = false
             saveButton.isEnabled = false
+
+            // По умолчанию скрываем кнопку удаления
+            deleteButton.visibility = View.GONE
 
             Log.d(TAG, "Views initialized successfully")
         } catch (e: Exception) {
@@ -116,6 +123,9 @@ class MainActivityAddCar : AppCompatActivity() {
             if (isEditMode) {
                 titleTextView.text = "Редактировать"
                 saveButton.text = "Сохранить изменения"
+
+                // Показываем кнопку удаления в режиме редактирования
+                deleteButton.visibility = View.VISIBLE
 
                 originalBrand = intent.getStringExtra("brand") ?: ""
                 originalModel = intent.getStringExtra("model") ?: ""
@@ -140,12 +150,13 @@ class MainActivityAddCar : AppCompatActivity() {
                     carImageView.setImageResource(R.drawable.ph)
                 }
 
-                Log.d(TAG, "Edit mode: Brand=$originalBrand, Model=$originalModel, Mileage=$originalMileage")
+                Log.d(TAG, "Edit mode: Brand=$originalBrand, Model=$originalModel, Mileage=$originalMileage, CarID=$currentCarId")
             } else {
                 titleTextView.text = "Добавить авто"
                 saveButton.text = "Добавить авто"
                 carImageView.setImageResource(R.drawable.ph)
                 editimageView.visibility = View.GONE
+                deleteButton.visibility = View.GONE
                 Log.d(TAG, "Add mode")
             }
         } catch (e: Exception) {
@@ -367,6 +378,10 @@ class MainActivityAddCar : AppCompatActivity() {
                 finish()
             }
 
+            deleteButton.setOnClickListener {
+                showDeleteConfirmationDialog()
+            }
+
             saveButton.setOnClickListener {
                 saveCarToDatabase()
             }
@@ -400,6 +415,90 @@ class MainActivityAddCar : AppCompatActivity() {
                 Log.e(TAG, "Error converting image to byte array: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivityAddCar, "Ошибка загрузки изображения", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Удаление автомобиля")
+            .setMessage("Вы уверены, что хотите удалить этот автомобиль? Это действие нельзя отменить.")
+            .setPositiveButton("Удалить") { _, _ ->
+                deleteCar()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun deleteCar() {
+        Log.d(TAG, "Deleting car with ID: $currentCarId")
+
+        val sessionManager = SessionManager(this)
+        val userId = sessionManager.getUserId()
+
+        if (userId == 0) {
+            Toast.makeText(this, "Ошибка: пользователь не авторизован", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        deleteButton.isEnabled = false
+        deleteButton.text = "Удаление..."
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val connectionHelper = ConnectionHelper()
+                val connect = connectionHelper.connectionclass()
+
+                if (connect != null) {
+                    // Сначала удаляем связанные записи (обслуживания)
+                    val deleteMaintenanceQuery = "DELETE FROM Maintenance WHERE car_id = ?"
+                    val maintenanceStatement: PreparedStatement = connect.prepareStatement(deleteMaintenanceQuery)
+                    maintenanceStatement.setInt(1, currentCarId)
+                    maintenanceStatement.executeUpdate()
+                    maintenanceStatement.close()
+
+                    // Затем удаляем сам автомобиль
+                    val deleteCarQuery = "DELETE FROM Cars WHERE car_id = ? AND user_id = ?"
+                    val carStatement: PreparedStatement = connect.prepareStatement(deleteCarQuery)
+                    carStatement.setInt(1, currentCarId)
+                    carStatement.setInt(2, userId)
+
+                    val rowsAffected = carStatement.executeUpdate()
+                    carStatement.close()
+                    connect.close()
+
+                    withContext(Dispatchers.Main) {
+                        deleteButton.isEnabled = true
+                        deleteButton.text = "Удалить"
+
+                        if (rowsAffected > 0) {
+                            Toast.makeText(this@MainActivityAddCar, "Автомобиль успешно удален", Toast.LENGTH_LONG).show()
+
+                            // Возвращаем результат с пометкой об удалении
+                            val resultIntent = Intent()
+                            resultIntent.putExtra("car_deleted", true)
+                            resultIntent.putExtra("car_id", currentCarId)
+                            setResult(RESULT_CAR_DELETED, resultIntent)
+
+                            finish()
+                        } else {
+                            Toast.makeText(this@MainActivityAddCar, "Ошибка при удалении автомобиля", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        deleteButton.isEnabled = true
+                        deleteButton.text = "Удалить"
+                        Toast.makeText(this@MainActivityAddCar, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error deleting car: ${ex.message}", ex)
+                withContext(Dispatchers.Main) {
+                    deleteButton.isEnabled = true
+                    deleteButton.text = "Удалить"
+                    Toast.makeText(this@MainActivityAddCar, "Ошибка удаления: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
