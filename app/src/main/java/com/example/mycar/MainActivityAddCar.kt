@@ -102,8 +102,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
             modelSpinner.isEnabled = false
             saveButton.isEnabled = false
-
-            // По умолчанию скрываем кнопку удаления
             deleteButton.visibility = View.GONE
 
             Log.d(TAG, "Views initialized successfully")
@@ -124,7 +122,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 titleTextView.text = "Редактировать"
                 saveButton.text = "Сохранить изменения"
 
-                // Показываем кнопку удаления в режиме редактирования
                 deleteButton.visibility = View.VISIBLE
 
                 originalBrand = intent.getStringExtra("brand") ?: ""
@@ -451,14 +448,12 @@ class MainActivityAddCar : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    // Сначала удаляем связанные записи (обслуживания)
                     val deleteMaintenanceQuery = "DELETE FROM Maintenance WHERE car_id = ?"
                     val maintenanceStatement: PreparedStatement = connect.prepareStatement(deleteMaintenanceQuery)
                     maintenanceStatement.setInt(1, currentCarId)
                     maintenanceStatement.executeUpdate()
                     maintenanceStatement.close()
 
-                    // Затем удаляем сам автомобиль
                     val deleteCarQuery = "DELETE FROM Cars WHERE car_id = ? AND user_id = ?"
                     val carStatement: PreparedStatement = connect.prepareStatement(deleteCarQuery)
                     carStatement.setInt(1, currentCarId)
