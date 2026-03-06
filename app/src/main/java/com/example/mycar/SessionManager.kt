@@ -1,3 +1,5 @@
+package com.example.mycar
+
 import android.content.Context
 import android.content.SharedPreferences
 
@@ -11,6 +13,8 @@ class SessionManager(context: Context) {
         const val IS_LOGGED_IN = "is_logged_in"
         const val CURRENT_CAR_ID = "current_car_id"
         const val USER_CARS = "user_cars"
+
+        const val USER_EMAIL = "user_email"
     }
 
     fun saveAuthToken(userId: Int, name: String, username: String) {
@@ -21,6 +25,26 @@ class SessionManager(context: Context) {
         editor.putBoolean(IS_LOGGED_IN, true)
         editor.apply()
     }
+
+    // ===== НОВЫЕ МЕТОДЫ ДЛЯ ОБНОВЛЕНИЯ ПРОФИЛЯ =====
+
+    fun saveUserName(fullName: String) {
+        prefs.edit().putString(USER_NAME, fullName).apply()
+    }
+
+    fun saveUserUsername(username: String) {
+        prefs.edit().putString(USER_USERNAME, username).apply()
+    }
+
+    fun saveUserEmail(email: String) {
+        prefs.edit().putString(USER_EMAIL, email).apply()
+    }
+
+    fun getUserEmail(): String? {
+        return prefs.getString(USER_EMAIL, null)
+    }
+
+    // ===== СУЩЕСТВУЮЩИЕ МЕТОДЫ =====
 
     fun getUserId(): Int {
         return prefs.getInt(USER_ID, 0)
@@ -45,9 +69,7 @@ class SessionManager(context: Context) {
     }
 
     fun setCurrentCar(carId: Int) {
-        val editor = prefs.edit()
-        editor.putInt(CURRENT_CAR_ID, carId)
-        editor.apply()
+        prefs.edit().putInt(CURRENT_CAR_ID, carId).apply()
     }
 
     fun getCurrentCarId(): Int {
@@ -73,5 +95,6 @@ class SessionManager(context: Context) {
             }
         }
     }
+
 
 }

@@ -86,7 +86,7 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/carCardView"
         android:layout_width="0dp"
-        android:layout_height="200dp"
+        android:layout_height="240dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="16dp"
         android:layout_marginEnd="16dp"
@@ -103,86 +103,96 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            tools:layout_editor_absoluteX="-27dp"
-            tools:layout_editor_absoluteY="0dp">
+            android:padding="8dp">
 
             <TextView
                 android:id="@+id/textView3"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="8dp"
                 android:padding="3dp"
                 android:text="Марка:"
                 android:textAlignment="center"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintHorizontal_bias="0.188"
+                app:layout_constraintBottom_toTopOf="@+id/textView6"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.1" />
+                app:layout_constraintVertical_bias="0.3" />
 
-            <Spinner
-                android:id="@+id/modelSpinner"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/brandTextInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                 android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginBottom="24dp"
-                android:enabled="false"
-                android:textSize="20dp"
-                android:textStyle="bold"
-                app:layout_constraintBottom_toTopOf="@+id/textInputEditText"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.919"
-                app:layout_constraintStart_toStartOf="parent" />
-
-            <Spinner
-                android:id="@+id/brandSpinner"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:textSize="20dp"
-                android:textStyle="bold"
-                app:layout_constraintBottom_toTopOf="@+id/modelSpinner"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.919"
-                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.4" />
+                app:layout_constraintBottom_toTopOf="@+id/modelTextInputLayout"
+                app:layout_constraintVertical_bias="0.2">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/textInputEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginBottom="16dp"
-                android:hint="Пробег"
-                android:singleLine="true"
+                <AutoCompleteTextView
+                    android:id="@+id/brandAutoComplete"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:completionThreshold="1"
+                    android:gravity="start|center_vertical"
+                    android:inputType="textCapWords"
+                    android:maxLines="1"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textSize="14sp" />
 
-                android:textSize="18sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.919"
-                app:layout_constraintStart_toStartOf="parent" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
                 android:id="@+id/textView6"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
-                android:layout_marginStart="16dp"
-                android:layout_marginBottom="52dp"
+                android:layout_marginStart="8dp"
                 android:padding="3dp"
                 android:text="Модель:"
                 android:textAlignment="center"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintBottom_toTopOf="@+id/textView7"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textView3"
-                app:layout_constraintVertical_bias="0.461" />
+                app:layout_constraintVertical_bias="0.3" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/modelTextInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/brandTextInputLayout"
+                app:layout_constraintBottom_toTopOf="@+id/mileageTextInputLayout"
+                app:layout_constraintVertical_bias="0.3">
+
+                <AutoCompleteTextView
+                    android:id="@+id/modelAutoComplete"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:completionThreshold="1"
+                    android:enabled="false"
+                    android:gravity="start|center_vertical"
+                    android:inputType="textCapWords"
+                    android:maxLines="1"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textSize="14sp" />
+
+            </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
                 android:id="@+id/textView7"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="8dp"
                 android:layout_marginBottom="16dp"
                 android:padding="3dp"
                 android:text="Пробег:"
@@ -191,6 +201,31 @@
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/mileageTextInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/modelTextInputLayout"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintVertical_bias="0.1">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/textInputEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:hint="Введите пробег"
+                    android:inputType="number"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textSize="14sp" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -201,49 +236,7 @@
         app:cardBackgroundColor="#228BE6"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:minHeight="70dp">
-
-            <ImageView
-                android:id="@+id/imageView4"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                android:layout_marginEnd="10dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.771"
-                app:layout_constraintStart_toEndOf="@+id/imageView7"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/fuel" />
-
-            <ImageView
-                android:id="@+id/imageView7"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.5"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/statistic" />
-
-            <ImageView
-                android:id="@+id/imageView5"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                android:layout_marginStart="10dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/imageView7"
-                app:layout_constraintHorizontal_bias="0.3"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/service" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.cardview.widget.CardView>
+        app:layout_constraintStart_toStartOf="parent" />
 
     <ImageView
         android:id="@+id/imageView2"

@@ -31,20 +31,23 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var descriptionEditText: EditText
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
-    private lateinit var imageViewStatistics: ImageView
-    private lateinit var imageViewRefueling: ImageView
-    private lateinit var imageViewMaintenance: ImageView
+
 
     private lateinit var history: ImageView
     private val serviceTypes = mutableListOf<ServiceType>()
     private val categories = mutableListOf<ServiceCategory>()
     private var selectedServiceTypeId: Int = 0
+
+    private var currentCarId: Int = 0
+    private var currentMaintenanceId: Int? = null
+    private var isEditMode: Boolean = false
+
     private lateinit var sharedPreferences: SharedPreferences
 
     companion object {
         private const val TAG = "MainActivityMaintenance"
         private const val PREF_CAR_ID = "current_car_id"
-        private const val AVG_YEARLY_MILEAGE = 15000 // Средний годовой пробег в км
+        private const val AVG_YEARLY_MILEAGE = 15000
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,6 +60,26 @@ class MainActivityMaintenance : AppCompatActivity() {
         loadServiceTypesWithCategories()
         setCurrentDate()
         setupStatusBarColors()
+
+        currentCarId = intent.getIntExtra("car_id", 0)
+        currentMaintenanceId = if (intent.hasExtra("maintenance_id")) {
+            intent.getIntExtra("maintenance_id", 0)
+        } else null
+
+        isEditMode = intent.getStringExtra("mode") == "edit" || currentMaintenanceId != null
+
+        if (currentCarId == 0) {
+            Toast.makeText(this, "Ошибка: автомобиль не выбран", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        if (isEditMode && currentMaintenanceId != null) {
+            addMaintenanceButton.text = "Обновить"
+            loadMaintenanceData()
+        } else {
+            addMaintenanceButton.text = "Добавить"
+        }
     }
 
     private fun initializeViews() {
@@ -71,18 +94,11 @@ class MainActivityMaintenance : AppCompatActivity() {
         cancelImageView = findViewById(R.id.imageViewCancel)
         history = findViewById(R.id.imageView12)
 
-
-        imageViewStatistics = findViewById(R.id.imageView7)
-        imageViewRefueling = findViewById(R.id.imageView4)
-        imageViewMaintenance = findViewById(R.id.imageView5)
     }
 
     private fun setupStatusBarColors() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
     }
@@ -90,7 +106,104 @@ class MainActivityMaintenance : AppCompatActivity() {
     private fun setCurrentDate() {
         val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
         val currentDate = dateFormat.format(Date())
-        dateEditText.setText(currentDate)
+        if (!isEditMode) {
+            dateEditText.setText(currentDate)
+        }
+    }
+
+    private fun loadMaintenanceData() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val connectionHelper = ConnectionHelper()
+                val connect = connectionHelper.connectionclass()
+
+                if (connect != null) {
+                    val query = """
+                        SELECT 
+                            m.date,
+                            m.mileage,
+                            m.total_amount,
+                            m.description,
+                            m.next_service_mileage,
+                            m.next_service_date,
+                            m.service_type_id,
+                            st.name as service_type_name
+                        FROM Maintenance m
+                        LEFT JOIN ServiceTypes st ON m.service_type_id = st.service_type_id
+                        WHERE m.maintenance_id = ? AND m.car_id = ?
+                    """
+
+                    val preparedStatement = connect.prepareStatement(query)
+                    preparedStatement.setInt(1, currentMaintenanceId!!)
+                    preparedStatement.setInt(2, currentCarId)
+                    val resultSet = preparedStatement.executeQuery()
+
+                    if (resultSet.next()) {
+                        val date = resultSet.getString("date")
+                        val mileage = resultSet.getInt("mileage")
+                        val totalAmount = resultSet.getDouble("total_amount")
+                        val description = resultSet.getString("description") ?: ""
+                        val nextServiceMileage = resultSet.getInt("next_service_mileage")
+                        val nextServiceDate = resultSet.getString("next_service_date")
+                        val serviceTypeId = resultSet.getInt("service_type_id")
+
+                        withContext(Dispatchers.Main) {
+                            dateEditText.setText(date)
+                            mileageEditText.setText(mileage.toString())
+                            amountEditText.setText(String.format(Locale.getDefault(), "%.2f", totalAmount))
+                            descriptionEditText.setText(description)
+
+                            if (nextServiceMileage > 0) {
+                                nextServiceMileageEditText.setText(nextServiceMileage.toString())
+                            }
+
+                            if (nextServiceDate != null && nextServiceDate.isNotEmpty()) {
+                                nextServiceDateEditText.setText(nextServiceDate)
+                            }
+
+                            selectedServiceTypeId = serviceTypeId
+                            selectServiceTypeInSpinner(serviceTypeId)
+                        }
+                    }
+
+                    resultSet.close()
+                    preparedStatement.close()
+                    connect.close()
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error loading maintenance data: ${ex.message}", ex)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivityMaintenance,
+                        "Ошибка загрузки данных: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun selectServiceTypeInSpinner(serviceTypeId: Int) {
+        val service = serviceTypes.find { it.serviceTypeId == serviceTypeId }
+        if (service != null) {
+            var position = 0
+            var found = false
+
+            for (category in categories) {
+                if (found) break
+                position++
+
+                val categoryServices = serviceTypes.filter { it.categoryId == category.categoryId }
+                for ((index, s) in categoryServices.withIndex()) {
+                    if (s.serviceTypeId == serviceTypeId) {
+                        found = true
+                        break
+                    }
+                    position++
+                }
+            }
+
+            if (found && position < serviceTypeSpinner.adapter.count) {
+                serviceTypeSpinner.setSelection(position)
+            }
+        }
     }
 
     private fun setupClickListeners() {
@@ -107,7 +220,11 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
 
         addMaintenanceButton.setOnClickListener {
-            saveMaintenanceToDatabase()
+            if (isEditMode && currentMaintenanceId != null) {
+                updateMaintenanceInDatabase()
+            } else {
+                saveMaintenanceToDatabase()
+            }
         }
 
         mileageEditText.setOnFocusChangeListener { _, hasFocus ->
@@ -130,19 +247,6 @@ class MainActivityMaintenance : AppCompatActivity() {
             showDatePicker(nextServiceDateEditText)
         }
 
-        imageViewStatistics.setOnClickListener {
-            val intent = Intent(this@MainActivityMaintenance, MainActivityStatistics::class.java)
-            startActivity(intent)
-        }
-
-        imageViewRefueling.setOnClickListener {
-            val intent = Intent(this@MainActivityMaintenance, MainActivityRefueling::class.java)
-            startActivity(intent)
-        }
-
-        imageViewMaintenance.setOnClickListener {
-            Toast.makeText(this, "Вы уже в окне обслуживания", Toast.LENGTH_SHORT).show()
-        }
 
         history.setOnClickListener {
             val intent = Intent(this@MainActivityMaintenance, MainActivityHistoryMainte::class.java)
@@ -181,14 +285,26 @@ class MainActivityMaintenance : AppCompatActivity() {
 
     private fun showDatePicker(editText: EditText) {
         val calendar = Calendar.getInstance()
+
+        try {
+            val currentDate = editText.text.toString().trim()
+            if (currentDate.isNotEmpty()) {
+                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                val date = dateFormat.parse(currentDate)
+                if (date != null) {
+                    calendar.time = date
+                }
+            }
+        } catch (e: Exception) {
+        }
+
         val dateSetListener = DatePickerDialog.OnDateSetListener { _, year, month, day ->
             val selectedDate = Calendar.getInstance()
             selectedDate.set(year, month, day)
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
             editText.setText(dateFormat.format(selectedDate.time))
 
-            // Если это дата следующего обслуживания, пересчитываем пробег
-            if (editText.id == R.id.nextServiceMileageEditText) {
+            if (editText.id == R.id.nextServiceDateEditText) {
                 calculateNextServiceMileageFromDate()
             }
         }
@@ -214,7 +330,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                     val nextServiceMileage = currentMileage + service.intervalKm
                     nextServiceMileageEditText.setText(nextServiceMileage.toString())
 
-                    // Рассчитываем примерную дату следующего обслуживания
                     calculateNextServiceDate(nextServiceMileage, currentMileage)
                 } else {
                     nextServiceMileageEditText.text.clear()
@@ -249,7 +364,6 @@ class MainActivityMaintenance : AppCompatActivity() {
                 }
             }
 
-            // Если не удалось рассчитать, оставляем поле пустым
             nextServiceDateEditText.text.clear()
         } catch (e: Exception) {
             Log.e(TAG, "Error calculating next service date: ${e.message}")
@@ -405,6 +519,10 @@ class MainActivityMaintenance : AppCompatActivity() {
         serviceTypeSpinner.adapter = adapter
 
         Log.d(TAG, "Service types loaded: ${serviceTypes.size}, Categories: ${categories.size}")
+
+        if (isEditMode && selectedServiceTypeId != 0) {
+            selectServiceTypeInSpinner(selectedServiceTypeId)
+        }
     }
 
     private fun saveMaintenanceToDatabase() {
@@ -428,11 +546,11 @@ class MainActivityMaintenance : AppCompatActivity() {
 
                     try {
                         val insertQuery = """
-                        INSERT INTO Maintenance 
-                        (car_id, service_type_id, date, mileage, total_amount, description, 
-                         next_service_mileage, next_service_date) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """
+                            INSERT INTO Maintenance 
+                            (car_id, service_type_id, date, mileage, total_amount, description, 
+                             next_service_mileage, next_service_date) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """
 
                         val preparedStatement: PreparedStatement = connect.prepareStatement(insertQuery)
                         preparedStatement.setInt(1, carId)
@@ -459,10 +577,10 @@ class MainActivityMaintenance : AppCompatActivity() {
 
                         if (rowsAffected > 0) {
                             val updateMileageQuery = """
-                            UPDATE Cars 
-                            SET mileage = ? 
-                            WHERE car_id = ? AND (mileage IS NULL OR mileage < ?)
-                        """
+                                UPDATE Cars 
+                                SET mileage = ? 
+                                WHERE car_id = ? AND (mileage IS NULL OR mileage < ?)
+                            """
 
                             val updateStatement = connect.prepareStatement(updateMileageQuery)
                             updateStatement.setInt(1, mileage)
@@ -508,8 +626,83 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
     }
 
+    private fun updateMaintenanceInDatabase() {
+        if (!validateInput()) return
+
+        val date = dateEditText.text.toString().trim()
+        val mileage = mileageEditText.text.toString().trim().toInt()
+        val amount = amountEditText.text.toString().trim().toDoubleOrNull() ?: 0.0
+        val nextServiceMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
+        val nextServiceDate = nextServiceDateEditText.text.toString().trim()
+        val description = descriptionEditText.text.toString().trim()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val connectionHelper = ConnectionHelper()
+                val connect = connectionHelper.connectionclass()
+
+                if (connect != null) {
+                    val updateQuery = """
+                        UPDATE Maintenance 
+                        SET service_type_id = ?, date = ?, mileage = ?, total_amount = ?, 
+                            description = ?, next_service_mileage = ?, next_service_date = ?
+                        WHERE maintenance_id = ? AND car_id = ?
+                    """
+
+                    val preparedStatement: PreparedStatement = connect.prepareStatement(updateQuery)
+                    preparedStatement.setInt(1, selectedServiceTypeId)
+                    preparedStatement.setString(2, date)
+                    preparedStatement.setInt(3, mileage)
+                    preparedStatement.setDouble(4, amount)
+                    preparedStatement.setString(5, description)
+
+                    if (nextServiceMileage != null) {
+                        preparedStatement.setInt(6, nextServiceMileage)
+                    } else {
+                        preparedStatement.setNull(6, java.sql.Types.INTEGER)
+                    }
+
+                    if (nextServiceDate.isNotEmpty()) {
+                        preparedStatement.setString(7, nextServiceDate)
+                    } else {
+                        preparedStatement.setNull(7, java.sql.Types.VARCHAR)
+                    }
+
+                    preparedStatement.setInt(8, currentMaintenanceId!!)
+                    preparedStatement.setInt(9, currentCarId)
+
+                    val rowsAffected = preparedStatement.executeUpdate()
+                    preparedStatement.close()
+                    connect.close()
+
+                    withContext(Dispatchers.Main) {
+                        if (rowsAffected > 0) {
+                            Toast.makeText(this@MainActivityMaintenance,
+                                "Обслуживание успешно обновлено", Toast.LENGTH_SHORT).show()
+
+                            val resultIntent = Intent()
+                            resultIntent.putExtra("maintenance_id", currentMaintenanceId)
+                            setResult(RESULT_OK, resultIntent)
+                            finish()
+                        } else {
+                            Toast.makeText(this@MainActivityMaintenance,
+                                "Ошибка при обновлении обслуживания", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error updating maintenance: ${ex.message}", ex)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivityMaintenance,
+                        "Ошибка обновления: ${ex.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     private fun showSuccessMessage(message: String = "Обслуживание успешно добавлено!") {
         Toast.makeText(this@MainActivityMaintenance, message, Toast.LENGTH_SHORT).show()
+        setResult(RESULT_OK)
         finish()
     }
 
@@ -575,12 +768,6 @@ class MainActivityMaintenance : AppCompatActivity() {
             false
         }
     }
-
-    private fun showError(message: String, editText: EditText? = null) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        editText?.requestFocus()
-    }
-
 }
 
 data class ServiceType(

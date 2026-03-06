@@ -1,6 +1,5 @@
 package com.example.mycar
 
-import SessionManager
 import android.content.ContentValues.TAG
 import android.content.Intent
 import android.os.Build

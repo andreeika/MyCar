@@ -15,52 +15,9 @@
         app:cardBackgroundColor="#228BE6"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:minHeight="70dp">
-
-            <ImageView
-                android:id="@+id/imageView4"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                android:layout_marginEnd="10dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.771"
-                app:layout_constraintStart_toEndOf="@+id/imageView7"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/fuel" />
-
-            <ImageView
-                android:id="@+id/imageView7"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.5"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/statistic" />
-
-            <ImageView
-                android:id="@+id/imageView5"
-                android:layout_width="90dp"
-                android:layout_height="60dp"
-                android:layout_marginStart="10dp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/imageView7"
-                app:layout_constraintHorizontal_bias="0.3"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/service" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
-    </androidx.cardview.widget.CardView>
+        app:layout_constraintStart_toStartOf="parent"/>
 
     <!-- Карточка с формой заправки -->
-
     <TextView
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
@@ -79,11 +36,11 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/refuelingCardView"
         android:layout_width="0dp"
-        android:layout_height="460dp"
+        android:layout_height="470dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="32dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="32dp"
         app:cardBackgroundColor="@android:color/white"
         app:cardCornerRadius="10dp"
         app:cardElevation="10dp"
@@ -123,7 +80,6 @@
                 android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
-
 
             <!-- Вид топлива -->
             <TextView
@@ -198,11 +154,12 @@
                 app:layout_constraintTop_toBottomOf="@+id/mileageEditText" />
 
             <!-- АЗС -->
+
             <TextView
                 android:id="@+id/textViewStationLabel"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="28dp"
                 android:gravity="center_vertical"
                 android:text="АЗС:"
                 android:textSize="16sp"
@@ -210,30 +167,32 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textViewVolumeLabel" />
 
-            <Spinner
-                android:id="@+id/stationSpinner"
-                android:layout_width="220dp"
-                android:layout_height="40dp"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/stationTextInputLayout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                android:layout_width="230dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:paddingStart="12dp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/volumeEditText" />
+                app:layout_constraintTop_toBottomOf="@+id/volumeEditText">
 
-            <!-- Полный бак -->
+                <AutoCompleteTextView
+                    android:id="@+id/stationAutoComplete"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:completionThreshold="1"
+                    android:gravity="start|center_vertical"
+                    android:hint="Выберите или введите"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:singleLine="true"
+                    android:textSize="14sp" />
+
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Цена за литр -->
-
-            <CheckBox
-                android:id="@+id/fullTankCheckBox"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="28dp"
-                android:text="Полный бак"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/totalAmountTextView" />
-
             <TextView
                 android:id="@+id/textViewPriceLabel"
                 android:layout_width="100dp"
@@ -246,8 +205,6 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textViewStationLabel" />
 
-            <!-- Сумма -->
-
             <EditText
                 android:id="@+id/priceEditText"
                 android:layout_width="180dp"
@@ -258,8 +215,9 @@
                 android:paddingStart="12dp"
                 android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/stationSpinner" />
+                app:layout_constraintTop_toBottomOf="@+id/stationTextInputLayout" />
 
+            <!-- Сумма -->
             <TextView
                 android:id="@+id/textViewTotalLabel"
                 android:layout_width="100dp"
@@ -285,15 +243,23 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/priceEditText" />
 
+            <!-- Полный бак -->
+            <CheckBox
+                android:id="@+id/fullTankCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:text="Полный бак"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/totalAmountTextView" />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Кнопка Добавить -->
 
-    <!-- Нижнее меню -->
-
     <!-- Кнопка отмены (крестик) -->
-
     <Button
         android:id="@+id/addRefuelingButton"
         android:layout_width="150dp"
@@ -306,7 +272,7 @@
         app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.857" />
+        app:layout_constraintVertical_bias="0.908" />
 
     <ImageView
         android:id="@+id/imageViewCancel"
@@ -322,6 +288,7 @@
         app:layout_constraintVertical_bias="0.01999998"
         app:srcCompat="@drawable/cancel" />
 
+    <!-- История -->
     <ImageView
         android:id="@+id/imageView8"
         android:layout_width="40dp"
