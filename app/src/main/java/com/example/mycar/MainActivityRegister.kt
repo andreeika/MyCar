@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.util.Patterns
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -23,6 +24,7 @@ import java.sql.ResultSet
 class MainActivityRegister : AppCompatActivity() {
 
     private lateinit var editTextFullName: EditText
+    private lateinit var editTextEmail: EditText
     private lateinit var editTextUsername: EditText
     private lateinit var editTextPassword: EditText
     private lateinit var editTextConfirmPassword: EditText
@@ -52,6 +54,7 @@ class MainActivityRegister : AppCompatActivity() {
 
     private fun initializeViews() {
         editTextFullName = findViewById(R.id.editTextFullName)
+        editTextEmail = findViewById(R.id.editTextEmail)
         editTextUsername = findViewById(R.id.editTextUsername)
         editTextPassword = findViewById(R.id.editTextPassword)
         editTextConfirmPassword = findViewById(R.id.editTextConfirmPassword)
@@ -63,9 +66,6 @@ class MainActivityRegister : AppCompatActivity() {
     private fun setupUI() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
     }
@@ -73,12 +73,13 @@ class MainActivityRegister : AppCompatActivity() {
     private fun setClickListeners() {
         buttonRegister.setOnClickListener {
             val fullName = editTextFullName.text.toString().trim()
+            val email = editTextEmail.text.toString().trim()
             val username = editTextUsername.text.toString().trim()
             val password = editTextPassword.text.toString().trim()
             val confirmPassword = editTextConfirmPassword.text.toString().trim()
 
-            if (validateInput(fullName, username, password, confirmPassword)) {
-                registerUser(fullName, username, password)
+            if (validateInput(fullName, email, username, password, confirmPassword)) {
+                registerUser(fullName, email, username, password)
             }
         }
 
@@ -93,7 +94,13 @@ class MainActivityRegister : AppCompatActivity() {
         }
     }
 
-    private fun validateInput(fullName: String, username: String, password: String, confirmPassword: String): Boolean {
+    private fun validateInput(
+        fullName: String,
+        email: String,
+        username: String,
+        password: String,
+        confirmPassword: String
+    ): Boolean {
         // Валидация ФИО
         when {
             fullName.isEmpty() -> {
@@ -114,6 +121,25 @@ class MainActivityRegister : AppCompatActivity() {
             fullName.contains("  ") -> {
                 editTextFullName.error = "Уберите лишние пробелы в имени"
                 editTextFullName.requestFocus()
+                return false
+            }
+        }
+
+        // Валидация Email с использованием Patterns.EMAIL_ADDRESS
+        when {
+            email.isEmpty() -> {
+                editTextEmail.error = "Введите email"
+                editTextEmail.requestFocus()
+                return false
+            }
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> {
+                editTextEmail.error = "Введите корректный email (например: name@domain.com)"
+                editTextEmail.requestFocus()
+                return false
+            }
+            email.contains(" ") -> {
+                editTextEmail.error = "Email не должен содержать пробелы"
+                editTextEmail.requestFocus()
                 return false
             }
         }
@@ -183,7 +209,7 @@ class MainActivityRegister : AppCompatActivity() {
         return true
     }
 
-    private fun registerUser(fullName: String, username: String, password: String) {
+    private fun registerUser(fullName: String, email: String, username: String, password: String) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 showProgress(true)
@@ -192,6 +218,7 @@ class MainActivityRegister : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
+                    // Проверяем, существует ли пользователь с таким логином
                     if (isUsernameExists(username)) {
                         withContext(Dispatchers.Main) {
                             showProgress(false)
@@ -201,14 +228,25 @@ class MainActivityRegister : AppCompatActivity() {
                         return@launch
                     }
 
+                    // Проверяем, существует ли пользователь с таким email
+                    if (isEmailExists(email)) {
+                        withContext(Dispatchers.Main) {
+                            showProgress(false)
+                            editTextEmail.error = "Пользователь с таким email уже существует"
+                            editTextEmail.requestFocus()
+                        }
+                        return@launch
+                    }
+
                     val encryptedPassword = PasswordEncryptor.hashPassword(password)
                     Log.d(TAG, "Password encrypted: ${password.length} chars -> ${encryptedPassword.length} chars")
 
-                    val query = "INSERT INTO users (full_name, username, password) VALUES (?, ?, ?)"
+                    val query = "INSERT INTO users (full_name, email, username, password) VALUES (?, ?, ?, ?)"
                     val preparedStatement: PreparedStatement = connect.prepareStatement(query)
                     preparedStatement.setString(1, fullName)
-                    preparedStatement.setString(2, username)
-                    preparedStatement.setString(3, encryptedPassword)
+                    preparedStatement.setString(2, email)
+                    preparedStatement.setString(3, username)
+                    preparedStatement.setString(4, encryptedPassword)
 
                     val rowsAffected = preparedStatement.executeUpdate()
 
@@ -268,6 +306,33 @@ class MainActivityRegister : AppCompatActivity() {
         }
     }
 
+    private suspend fun isEmailExists(email: String): Boolean {
+        return try {
+            val connectionHelper = ConnectionHelper()
+            val connect = connectionHelper.connectionclass()
+
+            if (connect != null) {
+                val query = "SELECT user_id FROM users WHERE email = ?"
+                val preparedStatement = connect.prepareStatement(query)
+                preparedStatement.setString(1, email)
+                val resultSet: ResultSet = preparedStatement.executeQuery()
+
+                val exists = resultSet.next()
+
+                resultSet.close()
+                preparedStatement.close()
+                connect.close()
+
+                exists
+            } else {
+                false
+            }
+        } catch (ex: Exception) {
+            Log.e(TAG, "Error checking email: ${ex.message}", ex)
+            false
+        }
+    }
+
     private fun autoLoginAfterRegistration(username: String, password: String) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
@@ -275,7 +340,7 @@ class MainActivityRegister : AppCompatActivity() {
                 val connect = connectionHelper.connectionclass()
 
                 if (connect != null) {
-                    val query = "SELECT user_id, full_name, username, password FROM users WHERE username = ?"
+                    val query = "SELECT user_id, full_name, username, email, password FROM users WHERE username = ?"
                     val preparedStatement: PreparedStatement = connect.prepareStatement(query)
                     preparedStatement.setString(1, username)
 
@@ -285,12 +350,13 @@ class MainActivityRegister : AppCompatActivity() {
                         val userId = resultSet.getInt("user_id")
                         val fullName = resultSet.getString("full_name")
                         val dbUsername = resultSet.getString("username")
+                        val email = resultSet.getString("email")
                         val storedEncryptedPassword = resultSet.getString("password")
                         val isPasswordCorrect = PasswordEncryptor.checkPassword(password, storedEncryptedPassword)
 
                         if (isPasswordCorrect) {
                             val sessionManager = SessionManager(this@MainActivityRegister)
-                            sessionManager.saveAuthToken(userId, fullName, dbUsername)
+                            sessionManager.saveAuthToken(userId, fullName, dbUsername, email)
 
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(this@MainActivityRegister, "Добро пожаловать, $fullName!", Toast.LENGTH_SHORT).show()
@@ -319,7 +385,6 @@ class MainActivityRegister : AppCompatActivity() {
             }
         }
     }
-
 
     private fun showProgress(show: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
