@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.Patterns
+import android.view.View
 import android.widget.Button
 import android.widget.Switch
 import android.widget.TextView
@@ -20,8 +21,6 @@ import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.sql.Connection
-import java.sql.PreparedStatement
 import java.util.Date
 
 class MainActivitySettings : AppCompatActivity() {
@@ -58,6 +57,7 @@ class MainActivitySettings : AppCompatActivity() {
     // ===== Информация =====
     private lateinit var textAppVersion: TextView
     private lateinit var textLastLogin: TextView
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
     companion object {
         private const val TAG = "MainActivitySettings"
@@ -78,12 +78,11 @@ class MainActivitySettings : AppCompatActivity() {
     }
 
     private fun initViews() {
-        // 🔹 Профиль - изменены ID для логина
         editUserName = findViewById(R.id.editUserName)
-        editUserLogin = findViewById(R.id.editUserLogin)      // вместо editUserPhone
+        editUserLogin = findViewById(R.id.editUserLogin)
         editUserEmail = findViewById(R.id.editUserEmail)
         layoutUserName = findViewById(R.id.layoutUserName)
-        layoutUserLogin = findViewById(R.id.layoutUserLogin)  // вместо layoutUserPhone
+        layoutUserLogin = findViewById(R.id.layoutUserLogin)
         layoutUserEmail = findViewById(R.id.layoutUserEmail)
 
         // Безопасность
@@ -106,6 +105,7 @@ class MainActivitySettings : AppCompatActivity() {
         // Информация
         textAppVersion = findViewById(R.id.textAppVersion)
         textLastLogin = findViewById(R.id.textLastLogin)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
         // Toolbar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
@@ -125,15 +125,12 @@ class MainActivitySettings : AppCompatActivity() {
         }
     }
     private fun loadCurrentData() {
-        // Загрузка данных профиля
         editUserName.setText(sessionManager.getUserName() ?: "")
-        editUserLogin.setText(sessionManager.getUsername() ?: "")   // загружаем логин
-        editUserEmail.setText(sharedPreferences.getString("user_email", "")) // email локально или из БД
+        editUserLogin.setText(sessionManager.getUsername() ?: "")
+        editUserEmail.setText(sessionManager.getUserEmail() ?: "")
 
-        // Загрузка настроек
         switchNotifications.isChecked = sharedPreferences.getBoolean("notifications_enabled", true)
 
-        // Информация
         textAppVersion.text = "Версия приложения: 1.0.0"
         textLastLogin.text = "Последний вход: ${getLastLoginTime()}"
     }
@@ -184,7 +181,7 @@ class MainActivitySettings : AppCompatActivity() {
         var isValid = true
 
         val userName = editUserName.text.toString().trim()
-        val userLogin = editUserLogin.text.toString().trim()   // логин
+        val userLogin = editUserLogin.text.toString().trim()
         val userEmail = editUserEmail.text.toString().trim()
 
         // 🔹 Валидация имени
@@ -198,7 +195,6 @@ class MainActivitySettings : AppCompatActivity() {
             layoutUserName.error = null
         }
 
-        // 🔹 Валидация логина (username)
         if (userLogin.isEmpty()) {
             layoutUserLogin.error = "Введите логин"
             isValid = false
@@ -212,7 +208,6 @@ class MainActivitySettings : AppCompatActivity() {
             layoutUserLogin.error = null
         }
 
-        // 🔹 Валидация email
         if (userEmail.isEmpty()) {
             layoutUserEmail.error = "Введите email"
             isValid = false
@@ -263,161 +258,74 @@ class MainActivitySettings : AppCompatActivity() {
         return isValid
     }
 
-    // ===== ОБНОВЛЕНИЕ ПРОФИЛЯ В БД =====
     private fun updateProfile() {
         btnSaveProfile.isEnabled = false
-
+        progressOverlay.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect: Connection? = connectionHelper.connectionclass()
-                val userId = sessionManager.getUserId()
+                val userId   = sessionManager.getUserId()
+                val fullName = editUserName.text.toString().trim()
+                val username = editUserLogin.text.toString().trim()
+                val email    = editUserEmail.text.toString().trim()
 
-                if (connect != null) {
-                    val fullName = editUserName.text.toString().trim()
-                    val username = editUserLogin.text.toString().trim()   // новый логин
-                    val email = editUserEmail.text.toString().trim()
+                ApiClient.updateProfile(userId, fullName, username, email)
 
-                    // 🔹 Обновляем full_name, username и email в БД
-                    val query = """
-                        UPDATE users 
-                        SET full_name = ?, username = ?, email = ?
-                        WHERE user_id = ?
-                    """.trimIndent()
-
-                    val preparedStatement: PreparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setString(1, fullName)
-                    preparedStatement.setString(2, username)
-                    preparedStatement.setString(3, email)
-                    preparedStatement.setInt(4, userId)
-
-                    val rowsAffected = preparedStatement.executeUpdate()
-
-                    preparedStatement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        if (rowsAffected > 0) {
-                            // 🔹 Сохраняем в SessionManager
-                            sessionManager.saveUserName(fullName)
-                            sessionManager.saveUserUsername(username)
-                            sharedPreferences.edit().putString("user_email", email).apply()
-
-                            Toast.makeText(this@MainActivitySettings, "Профиль успешно обновлен", Toast.LENGTH_SHORT).show()
-                            setResult(RESULT_OK)
-                            finish()
-                        } else {
-                            Toast.makeText(this@MainActivitySettings, "Ошибка при обновлении профиля", Toast.LENGTH_SHORT).show()
-                        }
-                        btnSaveProfile.isEnabled = true
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivitySettings, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                        btnSaveProfile.isEnabled = true
-                    }
-                }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error updating profile: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivitySettings, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    progressOverlay.visibility = View.GONE
+                    sessionManager.saveUserName(fullName)
+                    sessionManager.saveUserUsername(username)
+                    sessionManager.saveUserEmail(email)
+                    Toast.makeText(this@MainActivitySettings, "Профиль обновлён", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
+                    finish()
+                }
+            } catch (e: ApiException) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
                     btnSaveProfile.isEnabled = true
+                    Toast.makeText(this@MainActivitySettings, e.message ?: "Ошибка", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSaveProfile.isEnabled = true
+                    Toast.makeText(this@MainActivitySettings, "Нет связи с сервером", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
-    // ===== ОБНОВЛЕНИЕ ПАРОЛЯ В БД =====
     private fun updatePassword() {
         btnSavePassword.isEnabled = false
-
+        progressOverlay.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect: Connection? = connectionHelper.connectionclass()
-                val userId = sessionManager.getUserId()
+                val userId          = sessionManager.getUserId()
+                val currentPassword = editCurrentPassword.text.toString().trim()
+                val newPassword     = editNewPassword.text.toString().trim()
 
-                if (connect != null) {
-                    val currentPassword = editCurrentPassword.text.toString().trim()
-                    val newPassword = editNewPassword.text.toString().trim()
+                ApiClient.updatePassword(userId, currentPassword, newPassword)
 
-                    // Шаг 1: Получаем текущий хеш пароля из БД
-                    val selectQuery = "SELECT password FROM users WHERE user_id = ?"
-                    val selectStmt: PreparedStatement = connect.prepareStatement(selectQuery)
-                    selectStmt.setInt(1, userId)
-
-                    val resultSet = selectStmt.executeQuery()
-
-                    if (resultSet.next()) {
-                        val storedEncryptedPassword = resultSet.getString("password")
-
-                        // Шаг 2: Проверяем текущий пароль
-                        val isCurrentPasswordCorrect = PasswordEncryptor.checkPassword(currentPassword, storedEncryptedPassword)
-
-                        if (!isCurrentPasswordCorrect) {
-                            withContext(Dispatchers.Main) {
-                                layoutCurrentPassword.error = "Неверный текущий пароль"
-                                btnSavePassword.isEnabled = true
-                                Toast.makeText(this@MainActivitySettings, "Неверный текущий пароль", Toast.LENGTH_SHORT).show()
-                            }
-                            resultSet.close()
-                            selectStmt.close()
-                            connect.close()
-                            return@launch
-                        }
-
-                        // Шаг 3: Хешируем новый пароль
-                        val newEncryptedPassword = PasswordEncryptor.hashPassword(newPassword)
-
-                        // Шаг 4: Обновляем пароль в БД
-                        val updateQuery = "UPDATE users SET password = ? WHERE user_id = ?"
-                        val updateStmt: PreparedStatement = connect.prepareStatement(updateQuery)
-                        updateStmt.setString(1, newEncryptedPassword)
-                        updateStmt.setInt(2, userId)
-
-                        val rowsAffected = updateStmt.executeUpdate()
-
-                        resultSet.close()
-                        selectStmt.close()
-                        updateStmt.close()
-                        connect.close()
-
-                        withContext(Dispatchers.Main) {
-                            if (rowsAffected > 0) {
-                                Toast.makeText(this@MainActivitySettings, "Пароль успешно изменен", Toast.LENGTH_SHORT).show()
-
-                                editCurrentPassword.text?.clear()
-                                editNewPassword.text?.clear()
-                                editConfirmPassword.text?.clear()
-
-                                layoutCurrentPassword.error = null
-                                layoutNewPassword.error = null
-                                layoutConfirmPassword.error = null
-                            } else {
-                                Toast.makeText(this@MainActivitySettings, "Ошибка при изменении пароля", Toast.LENGTH_SHORT).show()
-                            }
-                            btnSavePassword.isEnabled = true
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivitySettings, "Пользователь не найден", Toast.LENGTH_SHORT).show()
-                            btnSavePassword.isEnabled = true
-                        }
-                        resultSet.close()
-                        selectStmt.close()
-                        connect.close()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivitySettings, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                        btnSavePassword.isEnabled = true
-                    }
-                }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error updating password: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivitySettings, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    progressOverlay.visibility = View.GONE
+                    Toast.makeText(this@MainActivitySettings, "Пароль изменён", Toast.LENGTH_SHORT).show()
+                    editCurrentPassword.text?.clear()
+                    editNewPassword.text?.clear()
+                    editConfirmPassword.text?.clear()
                     btnSavePassword.isEnabled = true
+                }
+            } catch (e: ApiException) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSavePassword.isEnabled = true
+                    if (e.code == 401) layoutCurrentPassword.error = "Неверный текущий пароль"
+                    else Toast.makeText(this@MainActivitySettings, e.message ?: "Ошибка", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSavePassword.isEnabled = true
+                    Toast.makeText(this@MainActivitySettings, "Нет связи с сервером", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -472,38 +380,20 @@ class MainActivitySettings : AppCompatActivity() {
     private fun deleteAccount() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect: Connection? = connectionHelper.connectionclass()
                 val userId = sessionManager.getUserId()
-
-                if (connect != null) {
-                    val query = "DELETE FROM users WHERE user_id = ?"
-                    val stmt: PreparedStatement = connect.prepareStatement(query)
-                    stmt.setInt(1, userId)
-                    stmt.executeUpdate()
-                    stmt.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        sharedPreferences.edit().clear().apply()
-                        sessionManager.logout()
-
-                        Toast.makeText(this@MainActivitySettings, "Аккаунт удален", Toast.LENGTH_SHORT).show()
-
-                        val intent = Intent(this@MainActivitySettings, MainActivityLogin::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
-                        startActivity(intent)
-                        finish()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivitySettings, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error deleting account: ${ex.message}", ex)
+                ApiClient.deleteAccount(userId)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivitySettings, "Ошибка при удалении: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    sharedPreferences.edit().clear().apply()
+                    sessionManager.logout()
+                    Toast.makeText(this@MainActivitySettings, "Аккаунт удалён", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@MainActivitySettings, MainActivityLogin::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+                    })
+                    finish()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivitySettings, "Ошибка удаления: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -512,5 +402,10 @@ class MainActivitySettings : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        super.onBackPressed()
     }
 }

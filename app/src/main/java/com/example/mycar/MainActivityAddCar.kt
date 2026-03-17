@@ -28,12 +28,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.Statement
 
 class MainActivityAddCar : AppCompatActivity() {
-    // AutoCompleteTextView для марки и модели
     private lateinit var brandAutoComplete: AutoCompleteTextView
     private lateinit var modelAutoComplete: AutoCompleteTextView
     private lateinit var brandTextInputLayout: TextInputLayout
@@ -60,19 +56,15 @@ class MainActivityAddCar : AppCompatActivity() {
     private var originalModel: String = ""
     private var originalMileage: Int = 0
 
-    // Флаги для отслеживания выбора из выпадающего списка
     private var isBrandSelectedFromList = false
     private var isModelSelectedFromList = false
 
-    // Флаги для проверки наличия в БД
     private var isBrandInDb = false
     private var isModelInDb = false
 
-    // Введенные вручную значения
     private var manualBrandName: String = ""
     private var manualModelName: String = ""
 
-    // Адаптеры для автодополнения
     private lateinit var brandAdapter: ArrayAdapter<String>
     private lateinit var modelAdapter: ArrayAdapter<String>
 
@@ -112,7 +104,6 @@ class MainActivityAddCar : AppCompatActivity() {
         Log.d(TAG, "Initializing views")
 
         try {
-            // Инициализация AutoCompleteTextView
             brandAutoComplete = findViewById(R.id.brandAutoComplete)
             modelAutoComplete = findViewById(R.id.modelAutoComplete)
             brandTextInputLayout = findViewById(R.id.brandTextInputLayout)
@@ -127,24 +118,20 @@ class MainActivityAddCar : AppCompatActivity() {
             titleTextView = findViewById(R.id.textView2)
             editimageView = findViewById(R.id.editimageView)
 
-            // Настройка начального состояния
             modelAutoComplete.isEnabled = false
             modelTextInputLayout.isEnabled = false
             saveButton.isEnabled = false
             deleteButton.visibility = View.GONE
 
-            // Инициализация адаптеров
             brandAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf())
             modelAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf())
 
             brandAutoComplete.setAdapter(brandAdapter)
             modelAutoComplete.setAdapter(modelAdapter)
 
-            // Установка threshold для автодополнения
             brandAutoComplete.threshold = 1
             modelAutoComplete.threshold = 1
 
-            // НАСТРОЙКА: показывать выпадающий список сразу при фокусе
             brandAutoComplete.onFocusChangeListener = View.OnFocusChangeListener { v, hasFocus ->
                 if (hasFocus && brandAdapter.count > 0) {
                     brandAutoComplete.showDropDown()
@@ -179,7 +166,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
 
     private fun setupTextWatchers() {
-        // TextWatcher для марки
         brandAutoComplete.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -187,7 +173,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
             override fun afterTextChanged(s: Editable?) {
                 if (!isBrandSelectedFromList) {
-                    // Пользователь ввел текст вручную
                     val brandText = s?.toString()?.trim() ?: ""
                     if (brandText.isNotEmpty()) {
                         checkBrandInDatabase(brandText)
@@ -197,7 +182,6 @@ class MainActivityAddCar : AppCompatActivity() {
                         manualBrandName = ""
                     }
 
-                    // Очищаем модель и делаем её доступной для ручного ввода
                     modelAutoComplete.setText("")
                     modelAutoComplete.isEnabled = true
                     modelTextInputLayout.isEnabled = true
@@ -212,7 +196,6 @@ class MainActivityAddCar : AppCompatActivity() {
             }
         })
 
-        // Обработчик выбора из выпадающего списка для марки
         brandAutoComplete.setOnItemClickListener { parent, view, position, id ->
             isBrandSelectedFromList = true
             val selectedBrandName = parent.getItemAtPosition(position) as String
@@ -222,12 +205,10 @@ class MainActivityAddCar : AppCompatActivity() {
                 isBrandInDb = true
                 manualBrandName = ""
                 Log.d(TAG, "Selected brand from DB: $selectedBrandName (ID: $selectedBrandId)")
-                // Загружаем модели для выбранной марки
                 loadModelsFromDatabase(selectedBrandId)
             }
         }
 
-        // TextWatcher для модели
         modelAutoComplete.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -235,7 +216,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
             override fun afterTextChanged(s: Editable?) {
                 if (!isModelSelectedFromList) {
-                    // Пользователь ввел текст вручную
                     val modelText = s?.toString()?.trim() ?: ""
                     if (modelText.isNotEmpty() && selectedBrandId > 0) {
                         checkModelInDatabase(modelText, selectedBrandId)
@@ -250,7 +230,6 @@ class MainActivityAddCar : AppCompatActivity() {
             }
         })
 
-        // Обработчик выбора из выпадающего списка для модели
         modelAutoComplete.setOnItemClickListener { parent, view, position, id ->
             isModelSelectedFromList = true
             val selectedModelName = parent.getItemAtPosition(position) as String
@@ -264,7 +243,6 @@ class MainActivityAddCar : AppCompatActivity() {
             validateAndEnableSaveButton()
         }
 
-        // TextWatcher для пробега
         mileageEditText.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -277,92 +255,39 @@ class MainActivityAddCar : AppCompatActivity() {
     private fun checkBrandInDatabase(brandName: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT brand_id FROM CarBrands WHERE name = ?"
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setString(1, brandName)
-                    val resultSet = preparedStatement.executeQuery()
-
-                    if (resultSet.next()) {
-                        // Марка найдена в БД
-                        selectedBrandId = resultSet.getInt("brand_id")
-                        isBrandInDb = true
-                        manualBrandName = ""
-                        Log.d(TAG, "Brand found in DB: $brandName (ID: $selectedBrandId)")
-
-                        // Загружаем модели для этой марки
-                        withContext(Dispatchers.Main) {
-                            loadModelsFromDatabase(selectedBrandId)
-                        }
+                val arr = ApiClient.getBrands()
+                val found = (0 until arr.length()).map { arr.getJSONObject(it) }
+                    .find { it.getString("name").equals(brandName, ignoreCase = true) }
+                withContext(Dispatchers.Main) {
+                    if (found != null) {
+                        selectedBrandId = found.getInt("brand_id"); isBrandInDb = true; manualBrandName = ""
+                        loadModelsFromDatabase(selectedBrandId)
                     } else {
-                        // Марка не найдена, будет добавлена позже
-                        selectedBrandId = 0
-                        isBrandInDb = false
-                        manualBrandName = brandName
-                        Log.d(TAG, "Brand not in DB, will be added: $brandName")
-
-                        withContext(Dispatchers.Main) {
-                            // Включаем поле модели для ручного ввода
-                            modelAutoComplete.isEnabled = true
-                            modelTextInputLayout.isEnabled = true
-                            modelTextInputLayout.hint = "Введите модель"
-                            modelAutoComplete.setText("")
-                            modelAdapter.clear()
-                            modelAdapter.notifyDataSetChanged()
-                        }
+                        selectedBrandId = 0; isBrandInDb = false; manualBrandName = brandName
+                        modelAutoComplete.isEnabled = true; modelTextInputLayout.isEnabled = true
+                        modelTextInputLayout.hint = "Введите модель"
+                        modelAutoComplete.setText(""); modelAdapter.clear(); modelAdapter.notifyDataSetChanged()
                     }
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
                 }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error checking brand: ${ex.message}", ex)
-            }
+            } catch (ex: Exception) { Log.e(TAG, "Error checking brand: ${ex.message}", ex) }
         }
     }
 
     private fun checkModelInDatabase(modelName: String, brandId: Int) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT model_id FROM CarModels WHERE name = ? AND brand_id = ?"
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setString(1, modelName)
-                    preparedStatement.setInt(2, brandId)
-                    val resultSet = preparedStatement.executeQuery()
-
-                    if (resultSet.next()) {
-                        // Модель найдена в БД
-                        selectedModelId = resultSet.getInt("model_id")
-                        isModelInDb = true
-                        manualModelName = ""
-                        Log.d(TAG, "Model found in DB: $modelName (ID: $selectedModelId)")
+                val arr = if (brandId > 0) ApiClient.getModels(brandId) else org.json.JSONArray()
+                val found = (0 until arr.length()).map { arr.getJSONObject(it) }
+                    .find { it.getString("name").equals(modelName, ignoreCase = true) }
+                withContext(Dispatchers.Main) {
+                    if (found != null) {
+                        selectedModelId = found.getInt("model_id"); isModelInDb = true; manualModelName = ""
                     } else {
-                        // Модель не найдена, будет добавлена позже
-                        selectedModelId = 0
-                        isModelInDb = false
-                        manualModelName = modelName
-                        Log.d(TAG, "Model not in DB, will be added: $modelName")
+                        selectedModelId = 0; isModelInDb = false; manualModelName = modelName
                     }
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        validateAndEnableSaveButton()
-                    }
+                    validateAndEnableSaveButton()
                 }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error checking model: ${ex.message}", ex)
-            }
+            } catch (ex: Exception) { Log.e(TAG, "Error checking model: ${ex.message}", ex) }
         }
     }
 
@@ -427,39 +352,17 @@ class MainActivityAddCar : AppCompatActivity() {
     }
 
     private fun loadBrandsFromDatabase() {
-        Log.d(TAG, "Loading brands from database")
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val statement: Statement = connect.createStatement()
-                    val resultSet: ResultSet = statement.executeQuery("SELECT brand_id, name FROM CarBrands ORDER BY name")
-
-                    brands.clear()
-                    val brandNames = mutableListOf<String>()
-
-                    while (resultSet.next()) {
-                        val brandId = resultSet.getInt("brand_id")
-                        val brandName = resultSet.getString("name")
-                        brands.add(CarBrand(brandId, brandName))
-                        brandNames.add(brandName)
-                    }
-
-                    resultSet.close()
-                    statement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        updateBrandAutoComplete(brandNames)
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityAddCar, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+                val arr = ApiClient.getBrands()
+                brands.clear()
+                val brandNames = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    brands.add(CarBrand(obj.getInt("brand_id"), obj.getString("name")))
+                    brandNames.add(obj.getString("name"))
                 }
+                withContext(Dispatchers.Main) { updateBrandAutoComplete(brandNames) }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading brands: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
@@ -514,50 +417,21 @@ class MainActivityAddCar : AppCompatActivity() {
     }
 
     private fun loadModelsFromDatabase(brandId: Int) {
-        Log.d(TAG, "Loading models for brand ID: $brandId")
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    models.clear()
-                    val modelNames = mutableListOf<String>()
-
-                    // Используем прямой SQL запрос вместо хранимой процедуры
-                    val query = "SELECT model_id, name FROM CarModels WHERE brand_id = ? ORDER BY name"
-                    val preparedStatement: PreparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setInt(1, brandId)
-
-                    val resultSet: ResultSet = preparedStatement.executeQuery()
-
-                    while (resultSet.next()) {
-                        val modelId = resultSet.getInt("model_id")
-                        val modelName = resultSet.getString("name")
-                        models.add(CarModel(modelId, modelName))
-                        modelNames.add(modelName)
-                        Log.d(TAG, "Found model: $modelName with ID: $modelId")
-                    }
-
-                    Log.d(TAG, "Total models loaded: ${models.size}")
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        updateModelAutoComplete(modelNames)
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityAddCar, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+                val arr = ApiClient.getModels(brandId)
+                models.clear()
+                val modelNames = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    models.add(CarModel(obj.getInt("model_id"), obj.getString("name")))
+                    modelNames.add(obj.getString("name"))
                 }
+                withContext(Dispatchers.Main) { updateModelAutoComplete(modelNames) }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading models: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityAddCar, "Ошибка загрузки моделей: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityAddCar, "Ошибка загрузки моделей", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -567,28 +441,22 @@ class MainActivityAddCar : AppCompatActivity() {
         Log.d(TAG, "Updating model autocomplete with ${modelNames.size} models")
 
         try {
-            // Очищаем адаптер
             modelAdapter.clear()
 
             if (modelNames.isNotEmpty()) {
-                // Добавляем модели в адаптер
                 modelAdapter.addAll(modelNames)
                 modelAdapter.notifyDataSetChanged()
 
-                // Настраиваем поле модели
                 modelAutoComplete.isEnabled = true
                 modelTextInputLayout.isEnabled = true
                 modelTextInputLayout.hint = "Выберите модель"
 
-                // Устанавливаем адаптер заново для гарантии
                 modelAutoComplete.setAdapter(modelAdapter)
 
-                // Устанавливаем пустой текст, чтобы не было предзаполнения
                 if (modelAutoComplete.text.toString().trim().isEmpty()) {
                     modelAutoComplete.setText("")
                 }
 
-                // Показываем выпадающий список сразу после загрузки
                 modelAutoComplete.post {
                     modelAutoComplete.showDropDown()
                     Log.d(TAG, "Showing dropdown with ${modelNames.size} items")
@@ -596,7 +464,6 @@ class MainActivityAddCar : AppCompatActivity() {
 
                 Log.d(TAG, "Model adapter updated with ${modelNames.size} items")
             } else {
-                // Если моделей нет
                 modelAutoComplete.isEnabled = true
                 modelTextInputLayout.isEnabled = true
                 modelTextInputLayout.hint = "Нет моделей для этой марки"
@@ -604,7 +471,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 Log.d(TAG, "No models found for this brand")
             }
 
-            // Обработка режима редактирования
             if (isEditMode && originalModel.isNotEmpty()) {
                 if (!isModelInDb) {
                     modelAutoComplete.setText(originalModel)
@@ -623,7 +489,6 @@ class MainActivityAddCar : AppCompatActivity() {
                     }
                 }
             } else {
-                // Если не режим редактирования, показываем список автоматически
                 if (modelNames.isNotEmpty()) {
                     modelAutoComplete.post {
                         modelAutoComplete.showDropDown()
@@ -659,7 +524,6 @@ class MainActivityAddCar : AppCompatActivity() {
                 saveCarToDatabase()
             }
 
-            // Добавляем обработчик клика на поле модели для показа списка
             modelAutoComplete.setOnClickListener {
                 if (modelAdapter.count > 0) {
                     modelAutoComplete.showDropDown()
@@ -712,102 +576,24 @@ class MainActivityAddCar : AppCompatActivity() {
     }
 
     private fun deleteCar() {
-        Log.d(TAG, "Deleting car with ID: $currentCarId")
-
         val sessionManager = SessionManager(this)
         val userId = sessionManager.getUserId()
+        if (userId == 0) { Toast.makeText(this, "Ошибка авторизации", Toast.LENGTH_SHORT).show(); return }
 
-        if (userId == 0) {
-            Toast.makeText(this, "Ошибка: пользователь не авторизован", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        deleteButton.isEnabled = false
-        deleteButton.text = "Удаление..."
-
+        deleteButton.isEnabled = false; deleteButton.text = "Удаление..."
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    // Начинаем транзакцию
-                    connect.autoCommit = false
-
-                    try {
-                        // 1. Сначала удаляем все заправки для этого автомобиля
-                        val deleteRefuelingQuery = "DELETE FROM refueling WHERE car_id = ?"
-                        val refuelingStatement: PreparedStatement = connect.prepareStatement(deleteRefuelingQuery)
-                        refuelingStatement.setInt(1, currentCarId)
-                        val deletedRefueling = refuelingStatement.executeUpdate()
-                        refuelingStatement.close()
-                        Log.d(TAG, "Deleted $deletedRefueling refueling records")
-
-                        // 2. Удаляем все записи обслуживания для этого автомобиля
-                        val deleteMaintenanceQuery = "DELETE FROM Maintenance WHERE car_id = ?"
-                        val maintenanceStatement: PreparedStatement = connect.prepareStatement(deleteMaintenanceQuery)
-                        maintenanceStatement.setInt(1, currentCarId)
-                        val deletedMaintenance = maintenanceStatement.executeUpdate()
-                        maintenanceStatement.close()
-                        Log.d(TAG, "Deleted $deletedMaintenance maintenance records")
-
-                        // 3. Удаляем сам автомобиль
-                        val deleteCarQuery = "DELETE FROM Cars WHERE car_id = ? AND user_id = ?"
-                        val carStatement: PreparedStatement = connect.prepareStatement(deleteCarQuery)
-                        carStatement.setInt(1, currentCarId)
-                        carStatement.setInt(2, userId)
-
-                        val rowsAffected = carStatement.executeUpdate()
-                        carStatement.close()
-
-                        // Подтверждаем транзакцию
-                        connect.commit()
-
-                        withContext(Dispatchers.Main) {
-                            deleteButton.isEnabled = true
-                            deleteButton.text = "Удалить"
-
-                            if (rowsAffected > 0) {
-                                Toast.makeText(
-                                    this@MainActivityAddCar,
-                                    "Автомобиль и все связанные записи успешно удалены",
-                                    Toast.LENGTH_LONG
-                                ).show()
-
-                                val resultIntent = Intent()
-                                resultIntent.putExtra("car_deleted", true)
-                                resultIntent.putExtra("car_id", currentCarId)
-                                setResult(RESULT_CAR_DELETED, resultIntent)
-
-                                finish()
-                            } else {
-                                Toast.makeText(
-                                    this@MainActivityAddCar,
-                                    "Ошибка при удалении автомобиля",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    } catch (ex: Exception) {
-                        // В случае ошибки откатываем транзакцию
-                        connect.rollback()
-                        throw ex
-                    } finally {
-                        connect.autoCommit = true
-                        connect.close()
+                ApiClient.deleteCar(userId, currentCarId)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivityAddCar, "Автомобиль удалён", Toast.LENGTH_SHORT).show()
+                    val resultIntent = Intent().apply {
+                        putExtra("car_deleted", true); putExtra("car_id", currentCarId)
                     }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        deleteButton.isEnabled = true
-                        deleteButton.text = "Удалить"
-                        Toast.makeText(this@MainActivityAddCar, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+                    setResult(RESULT_CAR_DELETED, resultIntent); finish()
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error deleting car: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    deleteButton.isEnabled = true
-                    deleteButton.text = "Удалить"
+                    deleteButton.isEnabled = true; deleteButton.text = "Удалить"
                     Toast.makeText(this@MainActivityAddCar, "Ошибка удаления: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
             }
@@ -815,249 +601,58 @@ class MainActivityAddCar : AppCompatActivity() {
     }
 
     private fun saveCarToDatabase() {
-        Log.d(TAG, "Saving car to database")
+        val brandText   = brandAutoComplete.text.toString().trim()
+        val modelText   = modelAutoComplete.text.toString().trim()
+        val mileageText = mileageEditText.text.toString().trim()
 
-        try {
-            val brandText = brandAutoComplete.text.toString().trim()
-            val modelText = modelAutoComplete.text.toString().trim()
-            val mileageText = mileageEditText.text.toString().trim()
+        if (brandText.isEmpty())   { Toast.makeText(this, "Введите марку", Toast.LENGTH_SHORT).show(); return }
+        if (modelText.isEmpty())   { Toast.makeText(this, "Введите модель", Toast.LENGTH_SHORT).show(); return }
+        if (mileageText.isEmpty()) { Toast.makeText(this, "Введите пробег", Toast.LENGTH_SHORT).show(); return }
+        val mileage = mileageText.toIntOrNull()
+        if (mileage == null || mileage < 0) { Toast.makeText(this, "Некорректный пробег", Toast.LENGTH_SHORT).show(); return }
 
-            // Валидация
-            if (brandText.isEmpty()) {
-                Toast.makeText(this, "Введите марку автомобиля", Toast.LENGTH_SHORT).show()
-                brandAutoComplete.requestFocus()
-                return
-            }
+        val sessionManager = SessionManager(this)
+        val userId = sessionManager.getUserId()
+        if (userId == 0) { Toast.makeText(this, "Ошибка авторизации", Toast.LENGTH_SHORT).show(); return }
 
-            if (modelText.isEmpty()) {
-                Toast.makeText(this, "Введите модель автомобиля", Toast.LENGTH_SHORT).show()
-                modelAutoComplete.requestFocus()
-                return
-            }
+        saveButton.isEnabled = false
+        saveButton.text = if (isEditMode) "Сохранение..." else "Добавление..."
 
-            if (mileageText.isEmpty()) {
-                Toast.makeText(this, "Введите пробег автомобиля", Toast.LENGTH_SHORT).show()
-                mileageEditText.requestFocus()
-                return
-            }
+        val photoBase64 = photoBytes?.let { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
 
-            val mileage = try {
-                mileageText.toInt()
-            } catch (e: NumberFormatException) {
-                Toast.makeText(this, "Пробег должен быть числом", Toast.LENGTH_SHORT).show()
-                mileageEditText.requestFocus()
-                return
-            }
-
-            if (mileage < 0) {
-                Toast.makeText(this, "Пробег не может быть отрицательным", Toast.LENGTH_SHORT).show()
-                mileageEditText.requestFocus()
-                return
-            }
-
-            val sessionManager = SessionManager(this)
-            val userId = sessionManager.getUserId()
-
-            if (userId == 0) {
-                Toast.makeText(this, "Ошибка: пользователь не авторизован", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            saveButton.isEnabled = false
-            saveButton.text = if (isEditMode) "Сохранение..." else "Добавление..."
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    val connectionHelper = ConnectionHelper()
-                    val connect = connectionHelper.connectionclass()
-
-                    if (connect != null) {
-                        connect.autoCommit = false
-
-                        try {
-                            if (isEditMode) {
-                                updateCarInDatabase(connect, userId, mileage, brandText, modelText)
-                            } else {
-                                insertCarIntoDatabase(connect, userId, mileage, brandText, modelText)
-                            }
-
-                            connect.commit()
-                        } catch (ex: Exception) {
-                            connect.rollback()
-                            throw ex
-                        } finally {
-                            connect.autoCommit = true
-                            connect.close()
-                        }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            saveButton.isEnabled = true
-                            saveButton.text = if (isEditMode) "Сохранить изменения" else "Добавить автомобиль"
-                            Toast.makeText(this@MainActivityAddCar, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                } catch (ex: Exception) {
-                    Log.e(TAG, "Error saving car: ${ex.message}", ex)
-                    withContext(Dispatchers.Main) {
-                        saveButton.isEnabled = true
-                        saveButton.text = if (isEditMode) "Сохранить изменения" else "Добавить автомобиль"
-                        Toast.makeText(this@MainActivityAddCar, "Ошибка сохранения: ${ex.message}", Toast.LENGTH_LONG).show()
-                    }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                if (isEditMode) {
+                    ApiClient.updateCar(
+                        userId, currentCarId,
+                        if (isBrandInDb) selectedBrandId else null,
+                        if (!isBrandInDb) manualBrandName.ifEmpty { brandText } else null,
+                        if (isModelInDb) selectedModelId else null,
+                        if (!isModelInDb) manualModelName.ifEmpty { modelText } else null,
+                        mileage.toDouble(), photoBase64
+                    )
+                } else {
+                    ApiClient.addCar(
+                        userId,
+                        if (isBrandInDb) selectedBrandId else null,
+                        if (!isBrandInDb) manualBrandName.ifEmpty { brandText } else null,
+                        if (isModelInDb) selectedModelId else null,
+                        if (!isModelInDb) manualModelName.ifEmpty { modelText } else null,
+                        mileage.toDouble(), photoBase64
+                    )
                 }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in saveCarToDatabase: ${e.message}", e)
-            Toast.makeText(this, "Ошибка при сохранении", Toast.LENGTH_SHORT).show()
-            saveButton.isEnabled = true
-            saveButton.text = if (isEditMode) "Сохранить изменения" else "Добавить автомобиль"
-        }
-    }
-
-    private suspend fun insertCarIntoDatabase(connect: java.sql.Connection, userId: Int, mileage: Int, brandText: String, modelText: String) {
-        Log.d(TAG, "Inserting new car into database")
-
-        var finalBrandId = selectedBrandId
-        var finalModelId = selectedModelId
-
-        // Если марка не в БД (введена вручную), добавляем её
-        if (!isBrandInDb) {
-            val insertBrandQuery = "INSERT INTO CarBrands (name) OUTPUT INSERTED.brand_id VALUES (?)"
-            val brandStatement: PreparedStatement = connect.prepareStatement(insertBrandQuery)
-            brandStatement.setString(1, manualBrandName.ifEmpty { brandText })
-            val brandResult = brandStatement.executeQuery()
-            if (brandResult.next()) {
-                finalBrandId = brandResult.getInt(1)
-                Log.d(TAG, "Inserted new brand: ${manualBrandName.ifEmpty { brandText }} with ID: $finalBrandId")
-            }
-            brandResult.close()
-            brandStatement.close()
-        } else {
-            finalBrandId = selectedBrandId
-        }
-
-        // Если модель не в БД (введена вручную), добавляем её
-        if (!isModelInDb) {
-            val insertModelQuery = "INSERT INTO CarModels (brand_id, name) OUTPUT INSERTED.model_id VALUES (?, ?)"
-            val modelStatement: PreparedStatement = connect.prepareStatement(insertModelQuery)
-            modelStatement.setInt(1, finalBrandId)
-            modelStatement.setString(2, manualModelName.ifEmpty { modelText })
-            val modelResult = modelStatement.executeQuery()
-            if (modelResult.next()) {
-                finalModelId = modelResult.getInt(1)
-                Log.d(TAG, "Inserted new model: ${manualModelName.ifEmpty { modelText }} with ID: $finalModelId")
-            }
-            modelResult.close()
-            modelStatement.close()
-        } else {
-            finalModelId = selectedModelId
-        }
-
-        val query = """
-            INSERT INTO Cars (user_id, model_id, mileage, photo) 
-            VALUES (?, ?, ?, ?)
-        """
-        val preparedStatement: PreparedStatement = connect.prepareStatement(query)
-        preparedStatement.setInt(1, userId)
-        preparedStatement.setInt(2, finalModelId)
-        preparedStatement.setInt(3, mileage)
-
-        if (photoBytes != null) {
-            preparedStatement.setBytes(4, photoBytes)
-        } else {
-            preparedStatement.setNull(4, java.sql.Types.VARBINARY)
-        }
-
-        val rowsAffected = preparedStatement.executeUpdate()
-        preparedStatement.close()
-
-        withContext(Dispatchers.Main) {
-            saveButton.isEnabled = true
-            saveButton.text = "Добавить автомобиль"
-
-            if (rowsAffected > 0) {
-                Toast.makeText(this@MainActivityAddCar, "Автомобиль успешно добавлен!", Toast.LENGTH_LONG).show()
-                finish()
-            } else {
-                Toast.makeText(this@MainActivityAddCar, "Ошибка при добавлении автомобиля", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private suspend fun updateCarInDatabase(connect: java.sql.Connection, userId: Int, mileage: Int, brandText: String, modelText: String) {
-        Log.d(TAG, "Updating car in database, ID: $currentCarId")
-
-        var finalBrandId = selectedBrandId
-        var finalModelId = selectedModelId
-
-        // Проверяем, изменилась ли марка
-        if (brandText != originalBrand) {
-            if (!isBrandInDb) {
-                // Добавляем новую марку
-                val insertBrandQuery = "INSERT INTO CarBrands (name) OUTPUT INSERTED.brand_id VALUES (?)"
-                val brandStatement: PreparedStatement = connect.prepareStatement(insertBrandQuery)
-                brandStatement.setString(1, manualBrandName.ifEmpty { brandText })
-                val brandResult = brandStatement.executeQuery()
-                if (brandResult.next()) {
-                    finalBrandId = brandResult.getInt(1)
-                    Log.d(TAG, "Inserted new brand for update: ${manualBrandName.ifEmpty { brandText }} with ID: $finalBrandId")
+                withContext(Dispatchers.Main) {
+                    if (isEditMode) ApiClient.invalidatePhotoCache(currentCarId)
+                    val msg = if (isEditMode) "Автомобиль обновлён!" else "Автомобиль добавлен!"
+                    Toast.makeText(this@MainActivityAddCar, msg, Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK); finish()
                 }
-                brandResult.close()
-                brandStatement.close()
-            } else {
-                finalBrandId = selectedBrandId
-            }
-        }
-
-        // Проверяем, изменилась ли модель
-        if (modelText != originalModel) {
-            if (!isModelInDb) {
-                // Добавляем новую модель
-                val insertModelQuery = "INSERT INTO CarModels (brand_id, name) OUTPUT INSERTED.model_id VALUES (?, ?)"
-                val modelStatement: PreparedStatement = connect.prepareStatement(insertModelQuery)
-                modelStatement.setInt(1, finalBrandId)
-                modelStatement.setString(2, manualModelName.ifEmpty { modelText })
-                val modelResult = modelStatement.executeQuery()
-                if (modelResult.next()) {
-                    finalModelId = modelResult.getInt(1)
-                    Log.d(TAG, "Inserted new model for update: ${manualModelName.ifEmpty { modelText }} with ID: $finalModelId")
+            } catch (ex: Exception) {
+                withContext(Dispatchers.Main) {
+                    saveButton.isEnabled = true
+                    saveButton.text = if (isEditMode) "Сохранить изменения" else "Добавить авто"
+                    Toast.makeText(this@MainActivityAddCar, "Ошибка: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
-                modelResult.close()
-                modelStatement.close()
-            } else {
-                finalModelId = selectedModelId
-            }
-        }
-
-        val query = """
-            UPDATE Cars 
-            SET model_id = ?, mileage = ?, photo = ?
-            WHERE car_id = ? AND user_id = ?
-        """
-        val preparedStatement: PreparedStatement = connect.prepareStatement(query)
-        preparedStatement.setInt(1, finalModelId)
-        preparedStatement.setInt(2, mileage)
-
-        if (photoBytes != null) {
-            preparedStatement.setBytes(3, photoBytes)
-        } else {
-            preparedStatement.setNull(3, java.sql.Types.VARBINARY)
-        }
-
-        preparedStatement.setInt(4, currentCarId)
-        preparedStatement.setInt(5, userId)
-
-        val rowsAffected = preparedStatement.executeUpdate()
-        preparedStatement.close()
-
-        withContext(Dispatchers.Main) {
-            saveButton.isEnabled = true
-            saveButton.text = "Сохранить изменения"
-
-            if (rowsAffected > 0) {
-                Toast.makeText(this@MainActivityAddCar, "Автомобиль успешно обновлен!", Toast.LENGTH_LONG).show()
-                finish()
-            } else {
-                Toast.makeText(this@MainActivityAddCar, "Ошибка при обновлении автомобиля", Toast.LENGTH_SHORT).show()
             }
         }
     }

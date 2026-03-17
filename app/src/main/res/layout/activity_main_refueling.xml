@@ -73,10 +73,13 @@
                 android:id="@+id/dateEditText"
                 android:layout_width="180dp"
                 android:layout_height="40dp"
+                android:clickable="true"
+                android:drawableEnd="@drawable/calendar"
+                android:drawablePadding="4dp"
+                android:focusable="false"
                 android:hint="дд.мм.гггг"
-                android:inputType="number"
-                android:maxLength="10"
                 android:paddingStart="12dp"
+                android:paddingEnd="8dp"
                 android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -300,5 +303,20 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.023"
         app:srcCompat="@drawable/history" />
+
+    <!-- ProgressBar overlay -->
+    <FrameLayout
+        android:id="@+id/progressOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40E4F1FF"
+        android:visibility="gone"
+        android:elevation="10dp">
+        <ProgressBar
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="#228BE6" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -22,7 +22,6 @@ class MainActivityHelp : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_help)
         setupStatusBarColors()
-        // Настройка Toolbar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -32,17 +31,14 @@ class MainActivityHelp : AppCompatActivity() {
             onBackPressed()
         }
 
-        // Кнопка обратной связи
         val fabContact = findViewById<FloatingActionButton>(R.id.fabContact)
         fabContact.setOnClickListener {
             showContactDialog()
         }
 
-        // Инициализация ExpandableListView
         expandableListView = findViewById(R.id.expandableListView)
         prepareListData()
 
-        // Создаем адаптер с правильными типами
         val groupList = ArrayList<HashMap<String, String>>()
         for (header in listDataHeader) {
             val groupMap = HashMap<String, String>()
@@ -76,7 +72,6 @@ class MainActivityHelp : AppCompatActivity() {
 
         expandableListView.setAdapter(expandableListAdapter)
 
-        // Обработчик кликов
         expandableListView.setOnChildClickListener { _, _, groupPosition, childPosition, _ ->
             onQuestionClicked(groupPosition, childPosition)
             false
@@ -92,14 +87,12 @@ class MainActivityHelp : AppCompatActivity() {
         listDataHeader = ArrayList()
         listDataChild = HashMap()
 
-        // Добавляем заголовки разделов
         listDataHeader.add("- Общие вопросы")
         listDataHeader.add("- Работа с автомобилем")
         listDataHeader.add("- Заправка и обслуживание")
         listDataHeader.add("- Статистика и отчеты")
         listDataHeader.add("- Техническая поддержка")
 
-        // Добавляем данные для каждого раздела
         val generalQuestions: List<String> = listOf(
             "Как добавить новый автомобиль?",
             "Как переключаться между автомобилями?",
@@ -132,7 +125,6 @@ class MainActivityHelp : AppCompatActivity() {
             "Где найти руководство пользователя?"
         )
 
-        // Связываем заголовки с данными
         listDataChild[listDataHeader[0]] = generalQuestions
         listDataChild[listDataHeader[1]] = carQuestions
         listDataChild[listDataHeader[2]] = fuelQuestions

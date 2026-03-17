@@ -10,9 +10,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +21,7 @@ class MainActivityHistoryMainte : AppCompatActivity() {
     private lateinit var imageViewDelete: ImageView
     private lateinit var textViewTitle: TextView
     private lateinit var adapter: MaintenanceAdapter
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
     private var currentCarId: Int = 0
     private var currentCarModel: String = ""
@@ -65,16 +63,15 @@ class MainActivityHistoryMainte : AppCompatActivity() {
         imageViewCancel = findViewById(R.id.imageViewCancel)
         imageViewDelete = findViewById(R.id.imageViewDelete2)
         textViewTitle = findViewById(R.id.textView2)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
         textViewTitle.text = "История"
 
-        // Инициализация адаптера
         adapter = MaintenanceAdapter(
             context = this,
             items = mutableListOf()
         )
 
-        // Устанавливаем слушатель для адаптера
         adapter.setOnItemActionListener(object : MaintenanceAdapter.OnItemActionListener {
             override fun onEditClick(item: Maintenance) {
                 openEditActivity(item)
@@ -124,79 +121,50 @@ class MainActivityHistoryMainte : AppCompatActivity() {
     }
 
     private fun loadMaintenanceFromDatabase() {
+        progressOverlay.visibility = View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
+                val arr = ApiClient.getMaintenance(currentCarId)
+                val newMaintenanceList = mutableListOf<Maintenance>()
+                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
-                if (connect != null) {
-                    val query = """
-                        SELECT 
-                            m.maintenance_id,
-                            m.date,
-                            m.mileage,
-                            m.total_amount,
-                            m.description,
-                            m.next_service_date,
-                            st.name as service_type_name
-                        FROM Maintenance m
-                        LEFT JOIN ServiceTypes st ON m.service_type_id = st.service_type_id
-                        WHERE m.car_id = ?
-                        ORDER BY m.date DESC, m.maintenance_id DESC
-                    """
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val dateStr = obj.optString("date", "")
+                    val formattedDate = try {
+                        dateFormat.format(isoFormat.parse(dateStr) ?: return@launch)
+                    } catch (e: Exception) { dateStr }
 
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setInt(1, currentCarId)
-                    val resultSet: ResultSet = preparedStatement.executeQuery()
+                    val nextDateStr = obj.optString("next_service_date", "")
+                    val formattedNextDate = if (nextDateStr.isNotEmpty() && nextDateStr != "null") {
+                        try { dateFormat.format(isoFormat.parse(nextDateStr)) }
+                        catch (e: Exception) { "" }
+                    } else ""
 
-                    val newMaintenanceList = mutableListOf<Maintenance>()
+                    newMaintenanceList.add(Maintenance(
+                        id = obj.getInt("maintenance_id"),
+                        date = formattedDate,
+                        mileage = obj.optDouble("mileage", 0.0),
+                        totalAmount = obj.optDouble("total_amount", 0.0),
+                        description = if (obj.isNull("description")) "" else obj.optString("description", ""),
+                        nextServiceDate = formattedNextDate,
+                        serviceTypeName = if (obj.isNull("service_type")) "" else obj.optString("service_type", "")
+                    ))
+                }
 
-                    while (resultSet.next()) {
-                        val maintenanceId = resultSet.getInt("maintenance_id")
-                        val date = resultSet.getDate("date")
-                        val mileage = resultSet.getDouble("mileage")
-                        val totalAmount = resultSet.getDouble("total_amount")
-                        val description = resultSet.getString("description") ?: ""
-                        val nextServiceDate = resultSet.getDate("next_service_date")
-                        val serviceTypeName = resultSet.getString("service_type_name") ?: "Неизвестно"
+                maintenanceList.clear()
+                maintenanceList.addAll(newMaintenanceList)
 
-                        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-                        val formattedDate = if (date != null) dateFormat.format(date) else "Нет данных"
-                        val formattedNextDate = if (nextServiceDate != null) dateFormat.format(nextServiceDate) else "Не указана"
-
-                        newMaintenanceList.add(Maintenance(
-                            maintenanceId,
-                            formattedDate,
-                            mileage,
-                            totalAmount,
-                            description,
-                            formattedNextDate,
-                            serviceTypeName
-                        ))
-                    }
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
-
-                    maintenanceList.clear()
-                    maintenanceList.addAll(newMaintenanceList)
-
-                    withContext(Dispatchers.Main) {
-                        adapter.updateData(newMaintenanceList)
-                        updateEmptyState()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityHistoryMainte,
-                            "Ошибка подключения к БД", Toast.LENGTH_SHORT).show()
-                        emptyTextView.visibility = View.VISIBLE
-                        emptyTextView.text = "Ошибка подключения к базе данных"
-                    }
+                withContext(Dispatchers.Main) {
+                    adapter.updateData(newMaintenanceList)
+                    progressOverlay.visibility = View.GONE
+                    updateEmptyState()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading maintenance: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivityHistoryMainte,
                         "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                     emptyTextView.visibility = View.VISIBLE
@@ -244,63 +212,29 @@ class MainActivityHistoryMainte : AppCompatActivity() {
     private fun deleteSelectedMaintenance(ids: List<Int>) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    connect.autoCommit = false
-
+                var deletedCount = 0
+                for (id in ids) {
                     try {
-                        val query = "DELETE FROM Maintenance WHERE maintenance_id = ? AND car_id = ?"
-                        val stmt: PreparedStatement = connect.prepareStatement(query)
-
-                        var deletedCount = 0
-                        for (id in ids) {
-                            stmt.setInt(1, id)
-                            stmt.setInt(2, currentCarId)
-                            deletedCount += stmt.executeUpdate()
-                        }
-
-                        stmt.close()
-
-                        if (deletedCount > 0) {
-                            connect.commit()
-                        } else {
-                            connect.rollback()
-                        }
-
-                        connect.autoCommit = true
-                        connect.close()
-
-                        withContext(Dispatchers.Main) {
-                            if (deletedCount > 0) {
-                                Toast.makeText(
-                                    this@MainActivityHistoryMainte,
-                                    "Удалено записей: $deletedCount",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-
-                                adapter.clearSelection()
-                                loadMaintenanceFromDatabase()
-                            } else {
-                                Toast.makeText(
-                                    this@MainActivityHistoryMainte,
-                                    "Ошибка при удалении",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
+                        ApiClient.deleteMaintenance(currentCarId, id)
+                        deletedCount++
                     } catch (ex: Exception) {
-                        connect.rollback()
-                        connect.autoCommit = true
-                        throw ex
+                        Log.e(TAG, "Error deleting maintenance $id: ${ex.message}")
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (deletedCount > 0) {
+                        Toast.makeText(this@MainActivityHistoryMainte, "Удалено записей: $deletedCount", Toast.LENGTH_SHORT).show()
+                        adapter.clearSelection()
+                        loadMaintenanceFromDatabase()
+                    } else {
+                        Toast.makeText(this@MainActivityHistoryMainte, "Ошибка при удалении", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error deleting maintenance: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityHistoryMainte,
-                        "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityHistoryMainte, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             }
         }

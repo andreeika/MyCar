@@ -1,5 +1,6 @@
 package com.example.mycar
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -35,6 +36,7 @@ class MainActivityRefueling : AppCompatActivity() {
     private lateinit var totalAmountTextView: TextView
     private lateinit var addRefuelingButton: Button
     private lateinit var imageViewCancel: ImageView
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
     private lateinit var history: ImageView
 
@@ -83,7 +85,6 @@ class MainActivityRefueling : AppCompatActivity() {
 
         initializeViews()
         setupDate()
-        setupDateInputMask()
         setAutoCalculateListener()
         setClickListeners()
         loadFuelData()
@@ -118,6 +119,7 @@ class MainActivityRefueling : AppCompatActivity() {
         addRefuelingButton = findViewById(R.id.addRefuelingButton)
         imageViewCancel = findViewById(R.id.imageViewCancel)
         history = findViewById(R.id.imageView8)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
         stationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf())
         stationAutoComplete.setAdapter(stationAdapter)
@@ -144,67 +146,44 @@ class MainActivityRefueling : AppCompatActivity() {
     private fun loadRefuelingData() {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = """
-                        SELECT r.*, f.name as fuel_name, f.marking, g.name as station_name
-                        FROM refueling r
-                        LEFT JOIN Fuel f ON r.fuel_id = f.fuel_id
-                        LEFT JOIN GasStations g ON r.station_id = g.station_id
-                        WHERE r.refueling_id = ? AND r.car_id = ?
-                    """.trimIndent()
-
-                    val stmt: PreparedStatement = connect.prepareStatement(query)
-                    stmt.setInt(1, refuelingId)
-                    stmt.setInt(2, currentCarId)
-                    val rs: ResultSet = stmt.executeQuery()
-
-                    if (rs.next()) {
+                val arr = ApiClient.getRefueling(currentCarId)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    if (obj.getInt("refueling_id") == refuelingId) {
                         withContext(Dispatchers.Main) {
-                            val date = rs.getDate("date")
-                            if (date != null) {
-                                dateEditText.setText(dateFormatDisplay.format(date))
+                            val dateStr = obj.optString("date", "")
+                            if (dateStr.isNotEmpty()) {
+                                try {
+                                    val parsed = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(dateStr)
+                                    if (parsed != null) dateEditText.setText(dateFormatDisplay.format(parsed))
+                                } catch (_: Exception) { dateEditText.setText(dateStr) }
                             }
+                            mileageEditText.setText(obj.optDouble("mileage", 0.0).toInt().toString())
+                            volumeEditText.setText(obj.optDouble("volume", 0.0).toString())
+                            priceEditText.setText(obj.optDouble("price_per_liter", 0.0).toString())
+                            fullTankCheckBox.isChecked = obj.optBoolean("full_tank", false)
 
-                            mileageEditText.setText(rs.getDouble("mileage").toInt().toString())
-                            volumeEditText.setText(rs.getDouble("volume").toString())
-                            priceEditText.setText(rs.getDouble("price_per_liter").toString())
-                            fullTankCheckBox.isChecked = rs.getBoolean("full_tank")
+                            val fuelName = obj.optString("fuel", "")
+                            val fuelIndex = fuels.indexOfFirst { it.name == fuelName }
+                            if (fuelIndex >= 0) { fuelSpinner.setSelection(fuelIndex); selectedFuelId = fuels[fuelIndex].fuelId }
 
-                            val fuelId = rs.getInt("fuel_id")
-                            val fuelIndex = fuels.indexOfFirst { it.fuelId == fuelId }
-                            if (fuelIndex >= 0) {
-                                fuelSpinner.setSelection(fuelIndex)
-                                selectedFuelId = fuelId
-                            }
-
-                            val stationName = rs.getString("station_name") ?: ""
+                            val stationName = obj.optString("station", "")
                             stationAutoComplete.setText(stationName, false)
-                            selectedStationId = rs.getInt("station_id")
-                            isStationInDb = true
+                            val st = stations.find { it.name == stationName }
+                            if (st != null) { selectedStationId = st.stationId; isStationInDb = true }
 
                             updateTotalAmount()
-
-                            Log.d(TAG, "Loaded refueling data: ID=$refuelingId")
                         }
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@MainActivityRefueling, "Запись не найдена", Toast.LENGTH_SHORT).show()
-                            finish()
-                        }
+                        return@launch
                     }
-
-                    rs.close()
-                    stmt.close()
-                    connect.close()
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivityRefueling, "Запись не найдена", Toast.LENGTH_SHORT).show(); finish()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading refueling: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityRefueling, "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
-                    finish()
+                    Toast.makeText(this@MainActivityRefueling, "Ошибка загрузки", Toast.LENGTH_SHORT).show(); finish()
                 }
             }
         }
@@ -213,35 +192,20 @@ class MainActivityRefueling : AppCompatActivity() {
     private fun loadCurrentCarMileage() {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT mileage FROM Cars WHERE car_id = ?"
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setInt(1, currentCarId)
-                    val rs: ResultSet = preparedStatement.executeQuery()
-
-                    if (rs.next()) {
-                        val currentMileage = rs.getInt("mileage")
+                val userId = SessionManager(this@MainActivityRefueling).getUserId()
+                val arr = ApiClient.getCars(userId)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    if (obj.getInt("car_id") == currentCarId) {
+                        val mileage = obj.optDouble("mileage", 0.0).toInt()
                         withContext(Dispatchers.Main) {
-                            if (currentMileage > 0) {
-                                mileageEditText.setText(currentMileage.toString())
-                                mileageEditText.isEnabled = true
-                            } else {
-                                mileageEditText.hint = "Введите пробег"
-                                mileageEditText.isEnabled = true
-                            }
+                            if (mileage > 0) mileageEditText.setText(mileage.toString())
+                            mileageEditText.isEnabled = true
                         }
+                        break
                     }
-
-                    rs.close()
-                    preparedStatement.close()
-                    connect.close()
                 }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error loading car mileage: ${ex.message}", ex)
-            }
+            } catch (ex: Exception) { Log.e(TAG, "Error loading mileage: ${ex.message}", ex) }
         }
     }
 
@@ -280,34 +244,15 @@ class MainActivityRefueling : AppCompatActivity() {
     private fun checkStationInDatabase(stationName: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT station_id FROM GasStations WHERE name = ?"
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setString(1, stationName)
-                    val resultSet = preparedStatement.executeQuery()
-
-                    if (resultSet.next()) {
-                        selectedStationId = resultSet.getInt("station_id")
-                        isStationInDb = true
-                        manualStationName = ""
-                        Log.d(TAG, "Station found in DB: $stationName (ID: $selectedStationId)")
-                    } else {
-                        selectedStationId = 0
-                        isStationInDb = false
-                        manualStationName = stationName
-                        Log.d(TAG, "Station not in DB, will be added: $stationName")
-                    }
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
+                val arr = ApiClient.getStations()
+                val found = (0 until arr.length()).map { arr.getJSONObject(it) }
+                    .find { it.getString("name").equals(stationName, ignoreCase = true) }
+                if (found != null) {
+                    selectedStationId = found.getInt("station_id"); isStationInDb = true; manualStationName = ""
+                } else {
+                    selectedStationId = 0; isStationInDb = false; manualStationName = stationName
                 }
-            } catch (ex: Exception) {
-                Log.e(TAG, "Error checking station: ${ex.message}", ex)
-            }
+            } catch (ex: Exception) { Log.e(TAG, "Error checking station: ${ex.message}", ex) }
         }
     }
 
@@ -316,69 +261,31 @@ class MainActivityRefueling : AppCompatActivity() {
         dateEditText.setText(dateFormatDisplay.format(currentDate))
     }
 
+    private fun showDatePicker() {
+        val cal = Calendar.getInstance()
+        val current = dateEditText.text.toString()
+        if (current.isNotEmpty()) {
+            try { cal.time = dateFormatDisplay.parse(current)!! } catch (_: Exception) {}
+        }
+        DatePickerDialog(this, { _, year, month, day ->
+            cal.set(year, month, day)
+            dateEditText.setText(dateFormatDisplay.format(cal.time))
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).apply {
+            datePicker.maxDate = System.currentTimeMillis()
+        }.show()
+    }
+
     private fun setupDateInputMask() {
-        dateEditText.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                val text = s.toString()
-                if (text.length == 2 && before == 0) {
-                    dateEditText.setText("$text.")
-                    dateEditText.setSelection(3)
-                } else if (text.length == 5 && before == 0) {
-                    dateEditText.setText("$text.")
-                    dateEditText.setSelection(6)
-                }
-            }
-            override fun afterTextChanged(s: Editable?) {
-                validateDate()
-            }
-        })
+        // не используется — дата выбирается через DatePickerDialog
     }
 
     private fun validateDate(): Boolean {
         val dateText = dateEditText.text.toString().trim()
-
         if (dateText.isEmpty()) {
-            dateEditText.error = "Введите дату"
+            Toast.makeText(this, "Выберите дату", Toast.LENGTH_SHORT).show()
             return false
         }
-
-        if (dateText.length != 10) {
-            dateEditText.error = "Формат: дд.мм.гггг"
-            return false
-        }
-
-        try {
-            if (!dateText.matches(Regex("\\d{2}\\.\\d{2}\\.\\d{4}"))) {
-                dateEditText.error = "Неверный формат даты"
-                return false
-            }
-
-            val date = dateFormatDisplay.parse(dateText)
-            if (date == null) {
-                dateEditText.error = "Неверная дата"
-                return false
-            }
-
-            if (date.after(Date())) {
-                dateEditText.error = "Дата не может быть в будущем"
-                return false
-            }
-
-            val calendar = Calendar.getInstance()
-            calendar.add(Calendar.YEAR, -10)
-            if (date.before(calendar.time)) {
-                dateEditText.error = "Дата слишком старая"
-                return false
-            }
-
-            dateEditText.error = null
-            return true
-
-        } catch (e: Exception) {
-            dateEditText.error = "Ошибка в дате"
-            return false
-        }
+        return true
     }
 
     private fun setAutoCalculateListener() {
@@ -418,6 +325,10 @@ class MainActivityRefueling : AppCompatActivity() {
 
         imageViewCancel.setOnClickListener {
             finish()
+        }
+
+        dateEditText.setOnClickListener {
+            showDatePicker()
         }
 
 
@@ -492,266 +403,67 @@ class MainActivityRefueling : AppCompatActivity() {
 
     private fun updateRefueling() {
         addRefuelingButton.isEnabled = false
-
+        progressOverlay.visibility = android.view.View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val sessionManager = SessionManager(this@MainActivityRefueling)
-                val userId = sessionManager.getUserId()
-
-                if (!isCarBelongsToUser(currentCarId, userId)) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Ошибка: доступ запрещен", Toast.LENGTH_SHORT).show()
-                        addRefuelingButton.isEnabled = true
-                    }
-                    return@launch
-                }
-
-                val mileage = mileageEditText.text.toString().toDouble()
-                val volume = volumeEditText.text.toString().toDouble()
-                val price = priceEditText.text.toString().toDouble()
-                val total = volume * price
-                val fullTank = fullTankCheckBox.isChecked
-
-                val dateText = dateEditText.text.toString().trim()
-                val date = dateFormatDisplay.parse(dateText)
-                if (date == null) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Ошибка в дате", Toast.LENGTH_SHORT).show()
-                        addRefuelingButton.isEnabled = true
-                    }
-                    return@launch
-                }
-
-                val calendar = Calendar.getInstance()
-                calendar.time = date
-                val year = calendar.get(Calendar.YEAR)
-                val month = calendar.get(Calendar.MONTH) + 1
-                val day = calendar.get(Calendar.DAY_OF_MONTH)
-                val sqlDate = String.format(Locale.US, "%04d%02d%02d", year, month, day)
-
+                val dateText    = dateEditText.text.toString().trim()
+                val mileage     = mileageEditText.text.toString().toDouble()
+                val volume      = volumeEditText.text.toString().toDouble()
+                val price       = priceEditText.text.toString().toDouble()
+                val fullTank    = fullTankCheckBox.isChecked
                 val stationText = stationAutoComplete.text.toString().trim()
-                var finalStationId = selectedStationId
 
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    connect.autoCommit = false
-
-                    try {
-                        if (!isStationInDb) {
-                            val insertStationQuery = "INSERT INTO GasStations (name) OUTPUT INSERTED.station_id VALUES (?)"
-                            val stationStatement = connect.prepareStatement(insertStationQuery)
-                            stationStatement.setString(1, manualStationName.ifEmpty { stationText })
-                            val stationResult = stationStatement.executeQuery()
-                            if (stationResult.next()) {
-                                finalStationId = stationResult.getInt(1)
-                            }
-                            stationResult.close()
-                            stationStatement.close()
-                        }
-
-                        val updateQuery = """
-                            UPDATE refueling 
-                            SET fuel_id = ?, station_id = ?, date = CONVERT(DATETIME, ?, 112),
-                                mileage = ?, volume = ?, price_per_liter = ?, 
-                                total_amount = ?, full_tank = ?
-                            WHERE refueling_id = ? AND car_id = ?
-                        """.trimIndent()
-
-                        val preparedStatement = connect.prepareStatement(updateQuery)
-                        preparedStatement.setInt(1, selectedFuelId)
-                        preparedStatement.setInt(2, finalStationId)
-                        preparedStatement.setString(3, sqlDate)
-                        preparedStatement.setDouble(4, mileage)
-                        preparedStatement.setDouble(5, volume)
-                        preparedStatement.setDouble(6, price)
-                        preparedStatement.setDouble(7, total)
-                        preparedStatement.setBoolean(8, fullTank)
-                        preparedStatement.setInt(9, refuelingId)
-                        preparedStatement.setInt(10, currentCarId)
-
-                        val rowsAffected = preparedStatement.executeUpdate()
-                        preparedStatement.close()
-
-                        if (rowsAffected > 0) {
-                            val updateMileageQuery = """
-                                UPDATE Cars 
-                                SET mileage = ? 
-                                WHERE car_id = ? AND (mileage IS NULL OR mileage < ?)
-                            """
-                            val updateStatement = connect.prepareStatement(updateMileageQuery)
-                            updateStatement.setDouble(1, mileage)
-                            updateStatement.setInt(2, currentCarId)
-                            updateStatement.setDouble(3, mileage)
-                            updateStatement.executeUpdate()
-                            updateStatement.close()
-
-                            connect.commit()
-
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@MainActivityRefueling, "Запись обновлена!", Toast.LENGTH_SHORT).show()
-                                setResult(RESULT_OK)
-                                finish()
-                            }
-                        } else {
-                            connect.rollback()
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@MainActivityRefueling, "Ошибка: запись не найдена", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (ex: Exception) {
-                        connect.rollback()
-                        throw ex
-                    } finally {
-                        connect.autoCommit = true
-                        connect.close()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                        addRefuelingButton.isEnabled = true
-                    }
+                ApiClient.updateRefueling(
+                    currentCarId, refuelingId, selectedFuelId,
+                    if (isStationInDb) selectedStationId else null,
+                    if (!isStationInDb) manualStationName.ifEmpty { stationText } else null,
+                    dateText, mileage, volume, price, fullTank
+                )
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    Toast.makeText(this@MainActivityRefueling, "Запись обновлена!", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK); finish()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error updating refueling: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityRefueling, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    progressOverlay.visibility = android.view.View.GONE
                     addRefuelingButton.isEnabled = true
+                    Toast.makeText(this@MainActivityRefueling, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
     private fun saveRefueling() {
+        addRefuelingButton.isEnabled = false
+        progressOverlay.visibility = android.view.View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val sessionManager = SessionManager(this@MainActivityRefueling)
-                val userId = sessionManager.getUserId()
-
-                if (!isCarBelongsToUser(currentCarId, userId)) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Ошибка: автомобиль не найден", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-
-                val mileage = mileageEditText.text.toString().toDouble()
-                val volume = volumeEditText.text.toString().toDouble()
-                val price = priceEditText.text.toString().toDouble()
-                val total = volume * price
-                val fullTank = fullTankCheckBox.isChecked
-
-                val dateText = dateEditText.text.toString().trim()
-                Log.d(TAG, "Input date: $dateText")
-
-                val date = dateFormatDisplay.parse(dateText)
-                if (date == null) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Ошибка в дате", Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-
-                val calendar = Calendar.getInstance()
-                calendar.time = date
-                val year = calendar.get(Calendar.YEAR)
-                val month = calendar.get(Calendar.MONTH) + 1
-                val day = calendar.get(Calendar.DAY_OF_MONTH)
-                val sqlDate = String.format(Locale.US, "%04d%02d%02d", year, month, day)
-                Log.d(TAG, "SQL date format: $sqlDate")
-
+                val dateText    = dateEditText.text.toString().trim()
+                val mileage     = mileageEditText.text.toString().toDouble()
+                val volume      = volumeEditText.text.toString().toDouble()
+                val price       = priceEditText.text.toString().toDouble()
+                val fullTank    = fullTankCheckBox.isChecked
                 val stationText = stationAutoComplete.text.toString().trim()
 
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    connect.autoCommit = false
-
-                    try {
-                        var finalStationId = selectedStationId
-
-                        if (!isStationInDb) {
-                            val insertStationQuery = "INSERT INTO GasStations (name) OUTPUT INSERTED.station_id VALUES (?)"
-                            val stationStatement = connect.prepareStatement(insertStationQuery)
-                            stationStatement.setString(1, manualStationName.ifEmpty { stationText })
-                            val stationResult = stationStatement.executeQuery()
-                            if (stationResult.next()) {
-                                finalStationId = stationResult.getInt(1)
-                                Log.d(TAG, "Inserted new station: ${manualStationName.ifEmpty { stationText }} with ID: $finalStationId")
-                            }
-                            stationResult.close()
-                            stationStatement.close()
-                        } else {
-                            finalStationId = selectedStationId
-                        }
-
-                        val insertRefuelingQuery = """
-                        INSERT INTO refueling (car_id, fuel_id, station_id, date, mileage, volume, price_per_liter, total_amount, full_tank)
-                        VALUES (?, ?, ?, CONVERT(DATETIME, ?, 112), ?, ?, ?, ?, ?)
-                    """
-
-                        val preparedStatement = connect.prepareStatement(insertRefuelingQuery)
-                        preparedStatement.setInt(1, currentCarId)
-                        preparedStatement.setInt(2, selectedFuelId)
-                        preparedStatement.setInt(3, finalStationId)
-                        preparedStatement.setString(4, sqlDate)
-                        preparedStatement.setDouble(5, mileage)
-                        preparedStatement.setDouble(6, volume)
-                        preparedStatement.setDouble(7, price)
-                        preparedStatement.setDouble(8, total)
-                        preparedStatement.setBoolean(9, fullTank)
-
-                        val rowsAffected = preparedStatement.executeUpdate()
-                        preparedStatement.close()
-
-                        if (rowsAffected > 0) {
-                            val updateMileageQuery = """
-                            UPDATE Cars 
-                            SET mileage = ? 
-                            WHERE car_id = ? AND (mileage IS NULL OR mileage < ?)
-                        """
-
-                            val updateStatement = connect.prepareStatement(updateMileageQuery)
-                            updateStatement.setDouble(1, mileage)
-                            updateStatement.setInt(2, currentCarId)
-                            updateStatement.setDouble(3, mileage)
-
-                            val updateRowsAffected = updateStatement.executeUpdate()
-                            updateStatement.close()
-
-                            connect.commit()
-
-                            withContext(Dispatchers.Main) {
-                                if (updateRowsAffected > 0) {
-                                    Toast.makeText(this@MainActivityRefueling, "Заправка добавлена и пробег обновлен!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(this@MainActivityRefueling, "Заправка добавлена! Пробег не изменился (уже больше текущего)", Toast.LENGTH_SHORT).show()
-                                }
-                                finish()
-                            }
-                        } else {
-                            connect.rollback()
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@MainActivityRefueling, "Ошибка при добавлении заправки", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (ex: Exception) {
-                        connect.rollback()
-                        throw ex
-                    } finally {
-                        connect.autoCommit = true
-                        connect.close()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityRefueling, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+                ApiClient.addRefueling(
+                    currentCarId, selectedFuelId,
+                    if (isStationInDb) selectedStationId else null,
+                    if (!isStationInDb) manualStationName.ifEmpty { stationText } else null,
+                    dateText, mileage, volume, price, fullTank
+                )
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    addRefuelingButton.isEnabled = true
+                    Toast.makeText(this@MainActivityRefueling, "Заправка добавлена!", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK); finish()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error saving refueling: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    addRefuelingButton.isEnabled = true
                     Toast.makeText(this@MainActivityRefueling, "Ошибка сохранения: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
             }
@@ -760,66 +472,30 @@ class MainActivityRefueling : AppCompatActivity() {
 
     private suspend fun isCarBelongsToUser(carId: Int, userId: Int): Boolean {
         return try {
-            val connectionHelper = ConnectionHelper()
-            val connect = connectionHelper.connectionclass()
-
-            if (connect != null) {
-                val query = "SELECT COUNT(*) as count FROM Cars WHERE car_id = ? AND user_id = ?"
-                val preparedStatement = connect.prepareStatement(query)
-                preparedStatement.setInt(1, carId)
-                preparedStatement.setInt(2, userId)
-                val rs: ResultSet = preparedStatement.executeQuery()
-
-                var count = 0
-                if (rs.next()) {
-                    count = rs.getInt("count")
-                }
-
-                rs.close()
-                preparedStatement.close()
-                connect.close()
-
-                count > 0
-            } else {
-                false
-            }
-        } catch (ex: Exception) {
-            Log.e(TAG, "Error checking car ownership: ${ex.message}", ex)
-            false
-        }
+            val arr = ApiClient.getCars(userId)
+            (0 until arr.length()).any { arr.getJSONObject(it).getInt("car_id") == carId }
+        } catch (ex: Exception) { false }
     }
 
     private fun loadFuelData() {
+        progressOverlay.visibility = android.view.View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT fuel_id, name, marking FROM Fuel WHERE fuel_id IS NOT NULL ORDER BY name"
-                    val st: Statement = connect.createStatement()
-                    val rs: ResultSet = st.executeQuery(query)
-
-                    fuels.clear()
-                    while (rs.next()) {
-                        val fuelId = rs.getInt("fuel_id")
-                        val name = rs.getString("name") ?: ""
-                        val marking = rs.getString("marking") ?: ""
-                        fuels.add(Fuel(fuelId, name, marking))
-                    }
-
-                    rs.close()
-                    st.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        updateFuelSpinner()
-                    }
+                val arr = ApiClient.getFuels()
+                fuels.clear()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    fuels.add(Fuel(obj.getInt("fuel_id"), obj.getString("name"), obj.optString("marking", "")))
+                }
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    updateFuelSpinner()
                 }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error loading fuel data: ${ex.message}", ex)
+                Log.e(TAG, "Error loading fuels: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityRefueling, "Ошибка загрузки видов топлива", Toast.LENGTH_SHORT).show()
+                    progressOverlay.visibility = android.view.View.GONE
+                    Toast.makeText(this@MainActivityRefueling, "Ошибка загрузки топлива", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -845,34 +521,17 @@ class MainActivityRefueling : AppCompatActivity() {
     private fun loadStationData() {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = "SELECT station_id, name FROM GasStations WHERE station_id IS NOT NULL ORDER BY name"
-                    val st: Statement = connect.createStatement()
-                    val rs: ResultSet = st.executeQuery(query)
-
-                    stations.clear()
-                    val stationNames = mutableListOf<String>()
-
-                    while (rs.next()) {
-                        val stationId = rs.getInt("station_id")
-                        val name = rs.getString("name") ?: ""
-                        stations.add(GasStation(stationId, name))
-                        stationNames.add(name)
-                    }
-
-                    rs.close()
-                    st.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        updateStationAutoComplete(stationNames)
-                    }
+                val arr = ApiClient.getStations()
+                stations.clear()
+                val stationNames = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    stations.add(GasStation(obj.getInt("station_id"), obj.getString("name")))
+                    stationNames.add(obj.getString("name"))
                 }
+                withContext(Dispatchers.Main) { updateStationAutoComplete(stationNames) }
             } catch (ex: Exception) {
-                Log.e(TAG, "Error loading station data: ${ex.message}", ex)
+                Log.e(TAG, "Error loading stations: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivityRefueling, "Ошибка загрузки АЗС", Toast.LENGTH_SHORT).show()
                 }

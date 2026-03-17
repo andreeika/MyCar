@@ -11,13 +11,13 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import android.app.DatePickerDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
@@ -42,8 +42,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.sql.ResultSet
-import java.sql.Statement
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -55,8 +53,8 @@ class MainActivityStatistics : AppCompatActivity() {
     private lateinit var carSpinner: Spinner
     private lateinit var periodTypeSpinner: Spinner
     private lateinit var customPeriodLayout: LinearLayout
-    private lateinit var editTextDateFrom: EditText
-    private lateinit var editTextDateTo: EditText
+    private lateinit var editTextDateFrom: TextView
+    private lateinit var editTextDateTo: TextView
     private lateinit var buttonApply: Button
     private lateinit var closeImageView: ImageView
 
@@ -69,6 +67,8 @@ class MainActivityStatistics : AppCompatActivity() {
     private lateinit var pieChart: PieChart
     private lateinit var lineChart: LineChart
     private lateinit var barChart: BarChart
+    private lateinit var progressOverlay: android.widget.FrameLayout
+    private lateinit var scrollViewContent: android.widget.ScrollView
 
     private val userCars = mutableListOf<Car>()
     private var selectedCarId: Int = -1
@@ -136,6 +136,8 @@ class MainActivityStatistics : AppCompatActivity() {
             pieChart = findViewById(R.id.pieChart)
             lineChart = findViewById(R.id.lineChart)
             barChart = findViewById(R.id.barChart)
+            progressOverlay = findViewById(R.id.progressOverlay)
+            scrollViewContent = findViewById(R.id.scrollViewContent)
 
             setDefaultDates()
 
@@ -161,26 +163,23 @@ class MainActivityStatistics : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        closeImageView.setOnClickListener {
-            finish()
-        }
+        closeImageView.setOnClickListener { finish() }
+        buttonApply.setOnClickListener { loadStatistics() }
+        editTextDateFrom.setOnClickListener { showDatePicker(editTextDateFrom) }
+        editTextDateTo.setOnClickListener { showDatePicker(editTextDateTo) }
+    }
 
-        buttonApply.setOnClickListener {
-            loadStatistics()
+    private fun showDatePicker(target: TextView) {
+        val fmt = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val cal = Calendar.getInstance()
+        val current = target.text.toString()
+        if (current.isNotEmpty() && current != target.hint) {
+            try { cal.time = fmt.parse(current)!! } catch (_: Exception) {}
         }
-
-        periodTypeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                val showCustomPeriod = position == 4
-                customPeriodLayout.visibility = if (showCustomPeriod) View.VISIBLE else View.GONE
-                if (!showCustomPeriod) {
-                    updateDatesForPeriod(position)
-                    loadStatistics()
-                }
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
-        }
+        DatePickerDialog(this, { _, year, month, day ->
+            cal.set(year, month, day)
+            target.text = fmt.format(cal.time)
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
     }
 
     private fun updateDatesForPeriod(periodPosition: Int) {
@@ -272,58 +271,41 @@ class MainActivityStatistics : AppCompatActivity() {
     }
 
     private fun loadUserCars() {
+        val sessionManager = SessionManager(this)
+        val userId = sessionManager.getUserId()
+        val intentCarId = intent.getIntExtra("car_id", -1)
+
+        progressOverlay.visibility = View.VISIBLE
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-                val sessionManager = SessionManager(this@MainActivityStatistics)
-                val userId = sessionManager.getUserId()
-
-                if (connect != null) {
-                    val query = """
-                        SELECT c.car_id, cb.name as brand_name, cm.name as model_name 
-                        FROM Cars c 
-                        LEFT JOIN CarModels cm ON c.model_id = cm.model_id 
-                        LEFT JOIN CarBrands cb ON cm.brand_id = cb.brand_id 
-                        WHERE c.user_id = $userId
-                    """
-
-                    val statement: Statement = connect.createStatement()
-                    val resultSet: ResultSet = statement.executeQuery(query)
-
-                    userCars.clear()
-                    while (resultSet.next()) {
-                        val carId = resultSet.getInt("car_id")
-                        val brand = resultSet.getString("brand_name") ?: ""
-                        val model = resultSet.getString("model_name") ?: ""
-                        val displayName = if (brand.isNotEmpty() && model.isNotEmpty()) {
-                            "$brand $model"
-                        } else {
-                            "Автомобиль ${userCars.size + 1}"
-                        }
-
-                        userCars.add(Car(carId, brand, model, displayName))
-                    }
-
-                    resultSet.close()
-                    statement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        setupCarSpinner()
-                        if (userCars.isNotEmpty()) {
-                            selectedCarId = userCars[0].id
-                            loadStatistics()
-                        }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityStatistics, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
+                val arr = ApiClient.getCars(userId)
+                userCars.clear()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val brand = obj.optString("brand", "")
+                    val model = obj.optString("model", "")
+                    val displayName = if (brand.isNotEmpty() && model.isNotEmpty()) "$brand $model"
+                                      else "Автомобиль ${i + 1}"
+                    userCars.add(Car(obj.getInt("car_id"), brand, model, displayName))
+                }
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    setupCarSpinner()
+                    if (userCars.isNotEmpty()) {
+                        val targetIndex = if (intentCarId != -1)
+                            userCars.indexOfFirst { it.id == intentCarId }.takeIf { it != -1 } ?: 0
+                        else 0
+                        selectedCarId = userCars[targetIndex].id
+                        carSpinner.setSelection(targetIndex, false)
+                        loadStatistics()
+                        // Listeners вешаем только после первой загрузки — исключает двойной вызов
+                        carSpinner.post { attachSpinnerListeners() }
                     }
                 }
             } catch (ex: Exception) {
                 Log.e("Statistics", "Error loading cars: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivityStatistics, "Ошибка загрузки автомобилей", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -332,6 +314,7 @@ class MainActivityStatistics : AppCompatActivity() {
 
     private fun setupCarSpinner() {
         try {
+            // Ставим адаптеры без listeners — Android может доставить onItemSelected асинхронно
             val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, userCars.map { it.displayName })
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             carSpinner.adapter = adapter
@@ -341,19 +324,32 @@ class MainActivityStatistics : AppCompatActivity() {
             periodAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             periodTypeSpinner.adapter = periodAdapter
 
-            carSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                    if (position in userCars.indices) {
-                        selectedCarId = userCars[position].id
-                        loadStatistics()
-                    }
-                }
-
-                override fun onNothingSelected(parent: AdapterView<*>) {}
-            }
-
         } catch (e: Exception) {
             Log.e("Statistics", "Error setting up spinner: ${e.message}", e)
+        }
+    }
+
+    private fun attachSpinnerListeners() {
+        carSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                if (position in userCars.indices && userCars[position].id != selectedCarId) {
+                    selectedCarId = userCars[position].id
+                    loadStatistics()
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>) {}
+        }
+
+        periodTypeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                val showCustomPeriod = position == 4
+                customPeriodLayout.visibility = if (showCustomPeriod) View.VISIBLE else View.GONE
+                if (!showCustomPeriod) {
+                    updateDatesForPeriod(position)
+                    loadStatistics()
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>) {}
         }
     }
 
@@ -372,6 +368,7 @@ class MainActivityStatistics : AppCompatActivity() {
             return
         }
 
+        progressOverlay.visibility = View.VISIBLE
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val statistics = loadStatisticsFromDatabase(carId, dateFrom, dateTo)
@@ -379,11 +376,14 @@ class MainActivityStatistics : AppCompatActivity() {
                 val fuelConsumption = calculateFuelConsumption(carId, dateFrom, dateTo)
 
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    scrollViewContent.visibility = View.VISIBLE
                     updateUI(statistics, monthlyStats, fuelConsumption)
                 }
             } catch (ex: Exception) {
                 Log.e("Statistics", "Error loading statistics: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivityStatistics, "Ошибка загрузки статистики", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -391,53 +391,14 @@ class MainActivityStatistics : AppCompatActivity() {
     }
 
     private suspend fun loadStatisticsFromDatabase(carId: Int, dateFrom: String, dateTo: String): Map<String, Double> {
-        val connectionHelper = ConnectionHelper()
-        val connect = connectionHelper.connectionclass() ?: return emptyMap()
-
         return try {
-            val query = """
-                SELECT 
-                    COALESCE(SUM(fuel_costs), 0) + COALESCE(SUM(maintenance_costs), 0) as total_expenses,
-                    COALESCE(SUM(fuel_costs), 0) as fuel_expenses,
-                    COALESCE(SUM(maintenance_costs), 0) as maintenance_expenses,
-                    COALESCE(MAX(total_mileage), 0) as total_mileage
-                FROM (
-                    SELECT 
-                        SUM(r.total_amount) as fuel_costs,
-                        NULL as maintenance_costs,
-                        MAX(r.mileage) - MIN(r.mileage) as total_mileage
-                    FROM Refueling r 
-                    WHERE r.car_id = $carId 
-                    AND CONVERT(date, r.date, 104) BETWEEN CONVERT(date, '$dateFrom', 104) AND CONVERT(date, '$dateTo', 104)
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        NULL as fuel_costs,
-                        SUM(m.total_amount) as maintenance_costs,
-                        NULL as total_mileage
-                    FROM Maintenance m 
-                    WHERE m.car_id = $carId 
-                    AND CONVERT(date, m.date, 104) BETWEEN CONVERT(date, '$dateFrom', 104) AND CONVERT(date, '$dateTo', 104)
-                ) combined_data
-            """
-
-            val statement: Statement = connect.createStatement()
-            val resultSet: ResultSet = statement.executeQuery(query)
-
-            val statistics = mutableMapOf<String, Double>()
-            if (resultSet.next()) {
-                statistics["total_expenses"] = resultSet.getDouble("total_expenses")
-                statistics["fuel_expenses"] = resultSet.getDouble("fuel_expenses")
-                statistics["maintenance_expenses"] = resultSet.getDouble("maintenance_expenses")
-                statistics["total_mileage"] = resultSet.getDouble("total_mileage")
-            }
-
-            resultSet.close()
-            statement.close()
-            connect.close()
-
-            statistics
+            val obj = ApiClient.getStatistics(carId, dateFrom, dateTo)
+            mapOf(
+                "total_expenses"        to obj.optDouble("total_expenses", 0.0),
+                "fuel_expenses"         to obj.optDouble("fuel_expenses", 0.0),
+                "maintenance_expenses"  to obj.optDouble("maintenance_expenses", 0.0),
+                "total_mileage"         to obj.optDouble("total_mileage", 0.0)
+            )
         } catch (ex: Exception) {
             Log.e("Statistics", "Error in loadStatisticsFromDatabase: ${ex.message}", ex)
             emptyMap()
@@ -445,59 +406,17 @@ class MainActivityStatistics : AppCompatActivity() {
     }
 
     private suspend fun loadMonthlyStatistics(carId: Int, dateFrom: String, dateTo: String): List<MonthlyStat> {
-        val connectionHelper = ConnectionHelper()
-        val connect = connectionHelper.connectionclass() ?: return emptyList()
-
         return try {
-            val query = """
-                SELECT 
-                    month,
-                    SUM(fuel_amount) + SUM(maintenance_amount) as total_amount,
-                    SUM(fuel_amount) as fuel_amount,
-                    SUM(maintenance_amount) as maintenance_amount
-                FROM (
-                    SELECT 
-                        FORMAT(CONVERT(date, r.date, 104), 'yyyy-MM') as month,
-                        SUM(r.total_amount) as fuel_amount,
-                        0 as maintenance_amount
-                    FROM Refueling r 
-                    WHERE r.car_id = $carId 
-                    AND CONVERT(date, r.date, 104) BETWEEN CONVERT(date, '$dateFrom', 104) AND CONVERT(date, '$dateTo', 104)
-                    GROUP BY FORMAT(CONVERT(date, r.date, 104), 'yyyy-MM')
-                    
-                    UNION ALL
-                    
-                    SELECT 
-                        FORMAT(CONVERT(date, m.date, 104), 'yyyy-MM') as month,
-                        0 as fuel_amount,
-                        SUM(m.total_amount) as maintenance_amount
-                    FROM Maintenance m 
-                    WHERE m.car_id = $carId 
-                    AND CONVERT(date, m.date, 104) BETWEEN CONVERT(date, '$dateFrom', 104) AND CONVERT(date, '$dateTo', 104)
-                    GROUP BY FORMAT(CONVERT(date, m.date, 104), 'yyyy-MM')
-                ) monthly_data
-                GROUP BY month
-                ORDER BY month DESC
-            """
-
-            val statement: Statement = connect.createStatement()
-            val resultSet: ResultSet = statement.executeQuery(query)
-
-            val monthlyStats = mutableListOf<MonthlyStat>()
-            while (resultSet.next()) {
-                val month = resultSet.getString("month")
-                val totalAmount = resultSet.getDouble("total_amount")
-                val fuelAmount = resultSet.getDouble("fuel_amount")
-                val maintenanceAmount = resultSet.getDouble("maintenance_amount")
-
-                monthlyStats.add(MonthlyStat(month, totalAmount, fuelAmount, maintenanceAmount))
+            val arr = ApiClient.getMonthlyStatistics(carId, dateFrom, dateTo)
+            (0 until arr.length()).map { i ->
+                val obj = arr.getJSONObject(i)
+                MonthlyStat(
+                    month = obj.optString("month", ""),
+                    totalAmount = obj.optDouble("total_amount", 0.0),
+                    fuelAmount = obj.optDouble("fuel_amount", 0.0),
+                    maintenanceAmount = obj.optDouble("maintenance_amount", 0.0)
+                )
             }
-
-            resultSet.close()
-            statement.close()
-            connect.close()
-
-            monthlyStats
         } catch (ex: Exception) {
             Log.e("Statistics", "Error in loadMonthlyStatistics: ${ex.message}", ex)
             emptyList()
@@ -505,135 +424,19 @@ class MainActivityStatistics : AppCompatActivity() {
     }
 
     private suspend fun calculateFuelConsumption(carId: Int, dateFrom: String, dateTo: String): Map<String, Double> {
-        val connectionHelper = ConnectionHelper()
-        val connect = connectionHelper.connectionclass() ?: return emptyMap()
-
         return try {
-            // Основной расчет для заправок с полным баком
-            val query = """
-            WITH FullTankRefuels AS (
-                SELECT 
-                    date,
-                    mileage,
-                    volume,
-                    total_amount,
-                    LAG(mileage) OVER (ORDER BY date, mileage) as prev_mileage,
-                    LAG(date) OVER (ORDER BY date, mileage) as prev_date
-                FROM Refueling 
-                WHERE car_id = $carId 
-                    AND full_tank = 1
-                    AND CONVERT(DATE, date, 104) 
-                        BETWEEN CONVERT(DATE, '$dateFrom', 104) 
-                        AND CONVERT(DATE, '$dateTo', 104)
+            val obj = ApiClient.getFuelConsumption(carId, dateFrom, dateTo)
+            mapOf(
+                "avg_consumption" to obj.optDouble("avg_consumption", 0.0),
+                "cost_per_km"     to obj.optDouble("cost_per_km", 0.0),
+                "distance"        to obj.optDouble("distance", 0.0),
+                "total_volume"    to obj.optDouble("total_volume", 0.0),
+                "total_fuel_cost" to obj.optDouble("total_fuel_cost", 0.0)
             )
-            SELECT 
-                SUM(CASE 
-                    WHEN mileage > prev_mileage AND prev_mileage IS NOT NULL 
-                    THEN mileage - prev_mileage 
-                    ELSE 0 
-                END) as total_distance,
-                SUM(volume) as total_volume,
-                SUM(total_amount) as total_fuel_cost,
-                COUNT(*) as full_tank_count
-            FROM FullTankRefuels
-        """
-
-            val stmt: Statement = connect.createStatement()
-            val rs: ResultSet = stmt.executeQuery(query)
-
-            val consumptionData = mutableMapOf<String, Double>()
-
-            if (rs.next()) {
-                val totalDistance = rs.getDouble("total_distance")
-                val totalVolume = rs.getDouble("total_volume")
-                val totalFuelCost = rs.getDouble("total_fuel_cost")
-                val fullTankCount = rs.getInt("full_tank_count")
-
-                // Если нет заправок с полным баком или их недостаточно, используем общие данные
-                if (fullTankCount >= 2 && totalDistance > 0) {
-                    // Точный расчет по полным бакам
-                    val avgConsumption = (totalVolume / totalDistance) * 100
-                    val costPerKm = totalFuelCost / totalDistance
-
-                    consumptionData["avg_consumption"] = avgConsumption
-                    consumptionData["cost_per_km"] = costPerKm
-                    consumptionData["distance"] = totalDistance
-                    consumptionData["total_volume"] = totalVolume
-                    consumptionData["total_fuel_cost"] = totalFuelCost
-                } else {
-                    // Запасной вариант: расчет по всем заправкам
-                    calculateAlternativeFuelConsumption(connect, carId, dateFrom, dateTo, consumptionData)
-                }
-            } else {
-                // Если нет данных в первом запросе
-                calculateAlternativeFuelConsumption(connect, carId, dateFrom, dateTo, consumptionData)
-            }
-
-            rs.close()
-            stmt.close()
-            connect.close()
-
-            consumptionData
         } catch (ex: Exception) {
             Log.e("Statistics", "Error in calculateFuelConsumption: ${ex.message}", ex)
-            Log.e("Statistics", "Stack trace: ${ex.stackTraceToString()}")
-
-            // В случае ошибки возвращаем значения по умолчанию
-            val defaultData = mutableMapOf<String, Double>()
-            defaultData["avg_consumption"] = 0.0
-            defaultData["cost_per_km"] = 0.0
-            defaultData["distance"] = 0.0
-            defaultData["total_volume"] = 0.0
-            defaultData["total_fuel_cost"] = 0.0
-            defaultData
-        }
-    }
-
-    private fun calculateAlternativeFuelConsumption(
-        connect: java.sql.Connection,
-        carId: Int,
-        dateFrom: String,
-        dateTo: String,
-        consumptionData: MutableMap<String, Double>
-    ) {
-        try {
-            // Альтернативный расчет по всем заправкам
-            val altQuery = """
-            SELECT 
-                COALESCE(MAX(mileage) - MIN(mileage), 0) as total_distance,
-                COALESCE(SUM(volume), 0) as total_volume,
-                COALESCE(SUM(total_amount), 0) as total_fuel_cost,
-                COUNT(*) as total_refuels
-            FROM Refueling 
-            WHERE car_id = $carId 
-                AND CONVERT(DATE, date, 104) 
-                    BETWEEN CONVERT(DATE, '$dateFrom', 104) 
-                    AND CONVERT(DATE, '$dateTo', 104)
-        """
-
-            val altStmt: Statement = connect.createStatement()
-            val altRs: ResultSet = altStmt.executeQuery(altQuery)
-
-            if (altRs.next()) {
-                val totalDistance = altRs.getDouble("total_distance")
-                val totalVolume = altRs.getDouble("total_volume")
-                val totalFuelCost = altRs.getDouble("total_fuel_cost")
-
-                val avgConsumption = if (totalDistance > 0) (totalVolume / totalDistance) * 100 else 0.0
-                val costPerKm = if (totalDistance > 0) totalFuelCost / totalDistance else 0.0
-
-                consumptionData["avg_consumption"] = avgConsumption
-                consumptionData["cost_per_km"] = costPerKm
-                consumptionData["distance"] = totalDistance
-                consumptionData["total_volume"] = totalVolume
-                consumptionData["total_fuel_cost"] = totalFuelCost
-            }
-
-            altRs.close()
-            altStmt.close()
-
-        } catch (ex: Exception) {
-            Log.e("Statistics", "Error in alternative calculation: ${ex.message}", ex)
+            mapOf("avg_consumption" to 0.0, "cost_per_km" to 0.0, "distance" to 0.0,
+                  "total_volume" to 0.0, "total_fuel_cost" to 0.0)
         }
     }
 
