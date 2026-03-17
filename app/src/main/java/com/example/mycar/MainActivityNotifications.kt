@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -29,8 +30,10 @@ class MainActivityNotifications : AppCompatActivity() {
     private lateinit var recyclerViewUrgent: RecyclerView
     private lateinit var recyclerViewRecommendations: RecyclerView
     private lateinit var recyclerViewInfo: RecyclerView
+    private lateinit var progressOverlay: FrameLayout
 
     private lateinit var notificationManager: NotificationManager
+    private var isLoaded = false
 
     data class Notification(
         val id: Int,
@@ -65,70 +68,38 @@ class MainActivityNotifications : AppCompatActivity() {
         recyclerViewUrgent = findViewById(R.id.recyclerViewUrgent)
         recyclerViewRecommendations = findViewById(R.id.recyclerViewRecommendations)
         recyclerViewInfo = findViewById(R.id.recyclerViewInfo)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
-        setupRecyclerViews()
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-    }
-
-    private fun setupRecyclerViews() {
         recyclerViewUrgent.layoutManager = LinearLayoutManager(this)
         recyclerViewRecommendations.layoutManager = LinearLayoutManager(this)
         recyclerViewInfo.layoutManager = LinearLayoutManager(this)
     }
 
-    private fun setupClickListeners() {
-        closeImageView.setOnClickListener {
-            finish()
+    private fun setupStatusBarColors() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
+            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
+    }
+
+    private fun setupClickListeners() {
+        closeImageView.setOnClickListener { finish() }
     }
 
     private fun loadNotifications() {
-        CoroutineScope(Dispatchers.IO).launch {
+        progressOverlay.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.Main).launch {
             try {
-
-                val currentCarId = sharedPreferences.getInt("current_car_id", -1)
-
-                val urgentNotifications = if (currentCarId > 0) {
-                    filterNotificationsByCar(notificationManager.getUrgentNotifications(this@MainActivityNotifications), currentCarId)
-                } else {
-                    // Если автомобиль не выбран, показываем все уведомления пользователя
-                    notificationManager.getUrgentNotifications(this@MainActivityNotifications)
-                }
-
-                val recommendations = if (currentCarId > 0) {
-                    filterNotificationsByCar(notificationManager.getMaintenanceRecommendations(this@MainActivityNotifications), currentCarId)
-                } else {
-                    notificationManager.getMaintenanceRecommendations(this@MainActivityNotifications)
-                }
-
-                val infoNotifications = if (currentCarId > 0) {
-                    filterNotificationsByCar(notificationManager.getInfoNotifications(this@MainActivityNotifications), currentCarId)
-                } else {
-                    notificationManager.getInfoNotifications(this@MainActivityNotifications)
-                }
-
-                withContext(Dispatchers.Main) {
-                    updateUI(urgentNotifications, recommendations, infoNotifications)
-                }
+                val all = notificationManager.getAllNotifications(this@MainActivityNotifications)
+                progressOverlay.visibility = View.GONE
+                updateUI(all.urgent, all.recommendations, all.info)
+                isLoaded = true
             } catch (ex: Exception) {
                 ex.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityNotifications, "Ошибка загрузки уведомлений", Toast.LENGTH_SHORT).show()
-                }
+                progressOverlay.visibility = View.GONE
+                Toast.makeText(this@MainActivityNotifications, "Ошибка загрузки уведомлений", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun filterNotificationsByCar(notifications: List<Notification>, carId: Int): List<Notification> {
-        return notifications.filter { it.carId == carId }
     }
 
     private fun updateUI(
@@ -136,17 +107,9 @@ class MainActivityNotifications : AppCompatActivity() {
         recommendations: List<Notification>,
         info: List<Notification>
     ) {
-        recyclerViewUrgent.adapter = NotificationAdapter(urgent) { notification ->
-            onNotificationClick(notification)
-        }
-
-        recyclerViewRecommendations.adapter = NotificationAdapter(recommendations) { notification ->
-            onNotificationClick(notification)
-        }
-
-        recyclerViewInfo.adapter = NotificationAdapter(info) { notification ->
-            onNotificationClick(notification)
-        }
+        recyclerViewUrgent.adapter = NotificationAdapter(urgent) { onNotificationClick(it) }
+        recyclerViewRecommendations.adapter = NotificationAdapter(recommendations) { onNotificationClick(it) }
+        recyclerViewInfo.adapter = NotificationAdapter(info) { onNotificationClick(it) }
 
         findViewById<View>(R.id.urgentNotificationsCard).visibility =
             if (urgent.isEmpty()) View.GONE else View.VISIBLE
@@ -156,33 +119,25 @@ class MainActivityNotifications : AppCompatActivity() {
             if (info.isEmpty()) View.GONE else View.VISIBLE
 
         if (urgent.isEmpty() && recommendations.isEmpty() && info.isEmpty()) {
-            showNoNotificationsMessage()
+            Toast.makeText(this, "Нет новых уведомлений", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun onNotificationClick(notification: Notification) {
+        notificationManager.markAsRead(this, notification.id)
+
         when (notification.type) {
             NotificationType.URGENT -> showUrgentNotificationDialog(notification)
             NotificationType.MAINTENANCE_RECOMMENDATION -> showMaintenanceDialog(notification)
             NotificationType.INFO -> showInfoDialog(notification)
         }
-
-        sharedPreferences.edit().putBoolean("notification_${notification.id}", true).apply()
-
-        notificationManager.markAsRead(notification.id)
-
-        loadNotifications()
-    }
-
-    private fun isNotificationRead(notificationId: Int): Boolean {
-        return sharedPreferences.getBoolean("notification_$notificationId", false)
     }
 
     private fun showUrgentNotificationDialog(notification: Notification) {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("⚠️ " + notification.title)
             .setMessage("${notification.message}\n\nАвтомобиль: ${notification.carName}")
-            .setPositiveButton("Перейти к обслуживанию") { dialog, which ->
+            .setPositiveButton("Перейти к обслуживанию") { _, _ ->
                 Toast.makeText(this, "Переход к обслуживанию", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Закрыть", null)
@@ -193,7 +148,7 @@ class MainActivityNotifications : AppCompatActivity() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("🔧 " + notification.title)
             .setMessage("${notification.message}\n\nАвтомобиль: ${notification.carName}")
-            .setPositiveButton("Запланировать ТО") { dialog, which ->
+            .setPositiveButton("Запланировать ТО") { _, _ ->
                 Toast.makeText(this, "Планирование ТО", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Позже", null)
@@ -207,11 +162,6 @@ class MainActivityNotifications : AppCompatActivity() {
             .setPositiveButton("ОК", null)
             .show()
     }
-
-    private fun showNoNotificationsMessage() {
-        Toast.makeText(this, "Нет новых уведомлений", Toast.LENGTH_SHORT).show()
-    }
-
 
     class NotificationAdapter(
         private val notifications: List<Notification>,
@@ -258,26 +208,16 @@ class MainActivityNotifications : AppCompatActivity() {
             holder.textViewCarInfo.text = notification.carName
             holder.divider.visibility = if (position == notifications.size - 1) View.GONE else View.VISIBLE
 
-            val context = holder.itemView.context
-            val sharedPrefs = context.getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
-            val isRead = sharedPrefs.getBoolean("notification_${notification.id}", false)
+            val isRead = holder.itemView.context
+                .getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
+                .getBoolean("notification_${notification.id}", false)
+            holder.itemView.setBackgroundColor(
+                if (!isRead) Color.parseColor("#E3F2FD") else Color.TRANSPARENT
+            )
 
-            if (!isRead) {
-                holder.itemView.setBackgroundColor(Color.parseColor("#E3F2FD"))
-            } else {
-                holder.itemView.setBackgroundColor(Color.TRANSPARENT)
-            }
-
-            holder.itemView.setOnClickListener {
-                onItemClick(notification)
-            }
+            holder.itemView.setOnClickListener { onItemClick(notification) }
         }
 
         override fun getItemCount() = notifications.size
-    }
-
-    override fun onResume() {
-        super.onResume()
-        loadNotifications()
     }
 }

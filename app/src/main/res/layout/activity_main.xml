@@ -10,7 +10,6 @@
     tools:context=".MainActivity"
     tools:openDrawer="start">
 
-    <!-- ============ ОСНОВНОЙ КОНТЕНТ ============ -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
@@ -18,7 +17,6 @@
         android:background="#E4F1FF"
         tools:context=".MainActivity">
 
-        <!-- Заголовок "Моя машина" -->
         <TextView
             android:id="@+id/textView8"
             android:layout_width="wrap_content"
@@ -37,15 +35,6 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintVertical_bias="0.021" />
 
-        <!-- Контейнер спиннера -->
-
-        <!-- Иконка уведомлений -->
-
-        <!-- Иконка выхода -->
-
-        <!-- 🔔 Кнопка меню (гамбургер) -->
-
-        <!-- Кнопка "Добавить новую машину" -->
 
         <ImageView
             android:id="@+id/imageView2"
@@ -90,7 +79,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/carCardView" />
 
-        <!-- Изображение автомобиля -->
         <ImageView
             android:id="@+id/imageView"
             android:layout_width="180dp"
@@ -108,7 +96,6 @@
             app:strokeColor="#228BE6"
             app:strokeWidth="2dp" />
 
-        <!-- Карточка с информацией об автомобиле -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/carCardView"
             android:layout_width="0dp"
@@ -233,7 +220,6 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Нижняя панель с иконками -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardView"
             android:layout_width="0dp"
@@ -285,7 +271,6 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Декоративное изображение -->
         <ImageView
             android:id="@+id/imageView9"
             android:layout_width="210dp"
@@ -298,9 +283,26 @@
             app:layout_constraintVertical_bias="0.03"
             app:srcCompat="@drawable/group" />
 
+        <FrameLayout
+            android:id="@+id/progressOverlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="#40E4F1FF"
+            android:visibility="gone"
+            android:elevation="10dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+            <ProgressBar
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center"
+                android:indeterminateTint="#228BE6" />
+        </FrameLayout>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- ============ БОКОВОЕ МЕНЮ (NavigationView) ============ -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
         android:layout_width="280dp"

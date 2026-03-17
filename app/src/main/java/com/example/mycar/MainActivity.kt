@@ -23,9 +23,7 @@ import com.google.android.material.navigation.NavigationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.sql.Connection
-import java.sql.ResultSet
-import java.sql.Statement
+import android.util.Base64
 
 class MainActivity : AppCompatActivity() {
 
@@ -63,10 +61,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var noCarsText: TextView
     private lateinit var navUserName: TextView
     private lateinit var navUserEmail: TextView
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
     private var userEmail: String = ""
 
-    var connect: Connection? = null
     private val userCars = mutableListOf<Car>()
     private var selectedCarId: Int = -1
     private var isCarsLoaded = false
@@ -148,6 +146,7 @@ class MainActivity : AppCompatActivity() {
         navUserEmail = headerView.findViewById<TextView>(R.id.navUserEmail)
         carsContainer = headerView.findViewById(R.id.carsContainer)
         noCarsText = headerView.findViewById(R.id.noCarsText)
+        progressOverlay = findViewById(R.id.progressOverlay)
     }
 
     private fun setupStatusBarColors() {
@@ -244,12 +243,26 @@ class MainActivity : AppCompatActivity() {
         selectedCarId = car.id
         displayCarInfo(car)
         saveCarSelection(car.id, car.displayName)
-
         updateCarSelectionInMenu()
-
         drawerLayout.close()
         Toast.makeText(this, "Выбран: ${car.displayName}", Toast.LENGTH_SHORT).show()
-        Log.d(TAG, "Car selected from menu: ${car.displayName}, ID: ${car.id}")
+
+        // Загружаем фото если его ещё нет
+        if (car.photoBytes == null) {
+            val userId = sessionManager.getUserId()
+            lifecycleScope.launch(Dispatchers.IO) {
+                val photoBytes = ApiClient.getCarPhotoBytes(userId, car.id)
+                if (photoBytes != null) {
+                    val idx = userCars.indexOfFirst { it.id == car.id }
+                    if (idx != -1) {
+                        userCars[idx] = userCars[idx].copy(photoBytes = photoBytes)
+                        withContext(Dispatchers.Main) {
+                            if (selectedCarId == car.id) displayCarInfo(userCars[idx])
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun updateCarSelectionInMenu() {
@@ -283,9 +296,10 @@ class MainActivity : AppCompatActivity() {
                 return true
             }
             R.id.nav_settings -> {
+                drawerLayout.close()
+                progressOverlay.visibility = View.VISIBLE
                 val intent = Intent(this, MainActivitySettings::class.java)
                 startActivityForResult(intent, 100)
-                drawerLayout.close()
                 return true
             }
             else -> return false
@@ -348,84 +362,63 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        progressOverlay.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                connect = connectionHelper.connectionclass()
                 val userId = sessionManager.getUserId()
+                val carsArray = ApiClient.getCars(userId)
+                val newCarsList = mutableListOf<Car>()
 
-                if (connect != null) {
-                    val userQuery = "SELECT email FROM users WHERE user_id = ?"
-                    val userStmt = connect!!.prepareStatement(userQuery)
-                    userStmt.setInt(1, userId)
-                    val userRs = userStmt.executeQuery()
+                for (i in 0 until carsArray.length()) {
+                    val obj = carsArray.getJSONObject(i)
+                    val carId   = obj.getInt("car_id")
+                    val brand   = obj.optString("brand", "")
+                    val model   = obj.optString("model", "")
+                    val mileage = obj.optDouble("mileage", 0.0)
+                    val displayName = if (brand.isNotEmpty() && model.isNotEmpty()) "$brand $model"
+                                      else "Автомобиль ${newCarsList.size + 1}"
+                    // фото грузим отдельно только для выбранного авто (экономим трафик)
+                    newCarsList.add(Car(carId, brand, model, mileage, null, displayName))
+                }
 
-                    if (userRs.next()) {
-                        userEmail = userRs.getString("email") ?: ""
-                        sessionManager.saveUserEmail(userEmail)
-                    }
-                    userRs.close()
-                    userStmt.close()
+                val resolvedCarId = withContext(Dispatchers.Main) {
+                    val oldSelectedCarId = selectedCarId
+                    userCars.clear()
+                    userCars.addAll(newCarsList)
 
-                    val query = "EXEC GetCarsWithBrandInfo @UserId = $userId"
-                    val st: Statement = connect!!.createStatement()
-                    val rs: ResultSet = st.executeQuery(query)
-
-                    val newCarsList = mutableListOf<Car>()
-
-                    while (rs.next()) {
-                        val carId = rs.getInt("car_id")
-                        val brand = rs.getString("brand_name") ?: ""
-                        val model = rs.getString("model_name") ?: ""
-                        val mileage = rs.getDouble("mileage")
-                        val imageBytes: ByteArray? = rs.getBytes("photo")
-
-                        val displayName = if (brand.isNotEmpty() && model.isNotEmpty()) {
-                            "$brand $model"
-                        } else {
-                            "Автомобиль ${newCarsList.size + 1}"
-                        }
-
-                        newCarsList.add(Car(carId, brand, model, mileage, imageBytes, displayName))
+                    if (userCars.isNotEmpty()) {
+                        val prev = if (oldSelectedCarId != -1) userCars.find { it.id == oldSelectedCarId } else null
+                        if (prev != null) { selectedCarId = prev.id; displayCarInfo(prev) }
+                        else restoreCarSelection()
+                    } else {
+                        showNoCarsMessage()
                     }
 
-                    rs.close()
-                    st.close()
+                    displayCarsInMenu()
+                    updateNavigationHeader()
+                    isCarsLoaded = true
+                    progressOverlay.visibility = View.GONE
+                    selectedCarId
+                }
 
-                    withContext(Dispatchers.Main) {
-                        val oldSelectedCarId = selectedCarId
-
-                        userCars.clear()
-                        userCars.addAll(newCarsList)
-
-                        if (userCars.isNotEmpty()) {
-                            val previouslySelectedCar = if (oldSelectedCarId != -1) {
-                                userCars.find { it.id == oldSelectedCarId }
-                            } else null
-
-                            if (previouslySelectedCar != null) {
-                                selectedCarId = previouslySelectedCar.id
-                                displayCarInfo(previouslySelectedCar)
-                            } else {
-                                restoreCarSelection()
+                // загружаем фото выбранного авто (используем resolvedCarId из Main-потока)
+                if (resolvedCarId != -1) {
+                    val photoBytes = ApiClient.getCarPhotoBytes(userId, resolvedCarId)
+                    if (photoBytes != null) {
+                        val idx = userCars.indexOfFirst { it.id == resolvedCarId }
+                        if (idx != -1) {
+                            userCars[idx] = userCars[idx].copy(photoBytes = photoBytes)
+                            withContext(Dispatchers.Main) {
+                                displayCarInfo(userCars[idx])
                             }
-                        } else {
-                            showNoCarsMessage()
                         }
-
-                        displayCarsInMenu()
-                        updateNavigationHeader()
-                        isCarsLoaded = true
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivity, "Ошибка подключения к БД", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading cars: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    progressOverlay.visibility = View.GONE
+                    Toast.makeText(this@MainActivity, "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -525,6 +518,7 @@ class MainActivity : AppCompatActivity() {
             .remove(PREF_CAR_NAME)
             .apply()
 
+        ApiClient.clearPhotoCache()
         sessionManager.logout()
         Toast.makeText(this, "Вы вышли из аккаунта", Toast.LENGTH_SHORT).show()
 
@@ -564,51 +558,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateCurrentCarMileage() {
-        if (selectedCarId != -1) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val connectionHelper = ConnectionHelper()
-                    val connect = connectionHelper.connectionclass()
-
-                    if (connect != null) {
-                        val query = "SELECT mileage FROM cars WHERE car_id = ?"
-                        val stmt = connect.prepareStatement(query)
-                        stmt.setInt(1, selectedCarId)
-                        val rs = stmt.executeQuery()
-
-                        if (rs.next()) {
-                            val newMileage = rs.getDouble("mileage")
-
-                            withContext(Dispatchers.Main) {
-                                val carIndex = userCars.indexOfFirst { it.id == selectedCarId }
-                                if (carIndex != -1) {
-                                    val updatedCar = userCars[carIndex].copy(mileage = newMileage)
-                                    userCars[carIndex] = updatedCar
-
-                                    if (selectedCarId == updatedCar.id) {
-                                        displayCarInfo(updatedCar)
-                                    }
-
-                                    displayCarsInMenu()
-
-                                    Log.d(TAG, "Mileage updated for car ID $selectedCarId: $newMileage км")
-                                }
+        if (selectedCarId == -1) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val userId = sessionManager.getUserId()
+                val carsArray = ApiClient.getCars(userId)
+                for (i in 0 until carsArray.length()) {
+                    val obj = carsArray.getJSONObject(i)
+                    if (obj.getInt("car_id") == selectedCarId) {
+                        val newMileage = obj.optDouble("mileage", 0.0)
+                        withContext(Dispatchers.Main) {
+                            val idx = userCars.indexOfFirst { it.id == selectedCarId }
+                            if (idx != -1) {
+                                userCars[idx] = userCars[idx].copy(mileage = newMileage)
+                                displayCarInfo(userCars[idx])
+                                displayCarsInMenu()
                             }
                         }
-
-                        rs.close()
-                        stmt.close()
-                        connect.close()
+                        break
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error updating mileage: ${e.message}", e)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating mileage: ${e.message}", e)
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
+        progressOverlay.visibility = View.GONE
         updateNavigationHeader()
         updateCurrentCarMileage()
 
@@ -652,6 +630,7 @@ class MainActivity : AppCompatActivity() {
                 loadUserCars(forceReload = true)
             }
             100 -> {
+                progressOverlay.visibility = View.GONE
                 if (resultCode == RESULT_OK) {
                     updateNavigationHeader()
                 }

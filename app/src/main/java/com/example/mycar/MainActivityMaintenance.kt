@@ -14,9 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.Statement
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -31,6 +28,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var descriptionEditText: EditText
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
 
     private lateinit var history: ImageView
@@ -79,6 +77,7 @@ class MainActivityMaintenance : AppCompatActivity() {
             loadMaintenanceData()
         } else {
             addMaintenanceButton.text = "Добавить"
+            loadCurrentCarMileage()
         }
     }
 
@@ -93,6 +92,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         addMaintenanceButton = findViewById(R.id.addMaintenanceButton)
         cancelImageView = findViewById(R.id.imageViewCancel)
         history = findViewById(R.id.imageView12)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
     }
 
@@ -114,67 +114,30 @@ class MainActivityMaintenance : AppCompatActivity() {
     private fun loadMaintenanceData() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val query = """
-                        SELECT 
-                            m.date,
-                            m.mileage,
-                            m.total_amount,
-                            m.description,
-                            m.next_service_mileage,
-                            m.next_service_date,
-                            m.service_type_id,
-                            st.name as service_type_name
-                        FROM Maintenance m
-                        LEFT JOIN ServiceTypes st ON m.service_type_id = st.service_type_id
-                        WHERE m.maintenance_id = ? AND m.car_id = ?
-                    """
-
-                    val preparedStatement = connect.prepareStatement(query)
-                    preparedStatement.setInt(1, currentMaintenanceId!!)
-                    preparedStatement.setInt(2, currentCarId)
-                    val resultSet = preparedStatement.executeQuery()
-
-                    if (resultSet.next()) {
-                        val date = resultSet.getString("date")
-                        val mileage = resultSet.getInt("mileage")
-                        val totalAmount = resultSet.getDouble("total_amount")
-                        val description = resultSet.getString("description") ?: ""
-                        val nextServiceMileage = resultSet.getInt("next_service_mileage")
-                        val nextServiceDate = resultSet.getString("next_service_date")
-                        val serviceTypeId = resultSet.getInt("service_type_id")
-
+                val arr = ApiClient.getMaintenance(currentCarId)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    if (obj.getInt("maintenance_id") == currentMaintenanceId) {
                         withContext(Dispatchers.Main) {
-                            dateEditText.setText(date)
-                            mileageEditText.setText(mileage.toString())
-                            amountEditText.setText(String.format(Locale.getDefault(), "%.2f", totalAmount))
-                            descriptionEditText.setText(description)
-
-                            if (nextServiceMileage > 0) {
-                                nextServiceMileageEditText.setText(nextServiceMileage.toString())
-                            }
-
-                            if (nextServiceDate != null && nextServiceDate.isNotEmpty()) {
-                                nextServiceDateEditText.setText(nextServiceDate)
-                            }
-
-                            selectedServiceTypeId = serviceTypeId
-                            selectServiceTypeInSpinner(serviceTypeId)
+                            dateEditText.setText(obj.optString("date", ""))
+                            mileageEditText.setText(obj.optInt("mileage", 0).toString())
+                            amountEditText.setText(String.format(Locale.getDefault(), "%.2f", obj.optDouble("total_amount", 0.0)))
+                            descriptionEditText.setText(obj.optString("description", ""))
+                            val nsm = obj.optInt("next_service_mileage", 0)
+                            if (nsm > 0) nextServiceMileageEditText.setText(nsm.toString())
+                            val nsd = obj.optString("next_service_date", "")
+                            if (nsd.isNotEmpty()) nextServiceDateEditText.setText(nsd)
+                            val stId = obj.optInt("service_type_id", 0)
+                            selectedServiceTypeId = stId
+                            selectServiceTypeInSpinner(stId)
                         }
+                        return@launch
                     }
-
-                    resultSet.close()
-                    preparedStatement.close()
-                    connect.close()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading maintenance data: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityMaintenance,
-                        "Ошибка загрузки данных: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivityMaintenance, "Ошибка загрузки данных", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -416,66 +379,54 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
     }
 
-    private fun loadServiceTypesWithCategories() {
+    private fun loadCurrentCarMileage() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val categoryQuery = """
-                        SELECT category_id, name 
-                        FROM ServiceCategory 
-                        ORDER BY category_id
-                    """
-
-                    val categoryStatement: Statement = connect.createStatement()
-                    val categoryResultSet: ResultSet = categoryStatement.executeQuery(categoryQuery)
-
-                    categories.clear()
-                    while (categoryResultSet.next()) {
-                        val categoryId = categoryResultSet.getInt("category_id")
-                        val categoryName = categoryResultSet.getString("name")
-                        categories.add(ServiceCategory(categoryId, categoryName))
+                val userId = SessionManager(this@MainActivityMaintenance).getUserId()
+                val arr = ApiClient.getCars(userId)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    if (obj.getInt("car_id") == currentCarId) {
+                        val mileage = obj.optInt("mileage", 0)
+                        withContext(Dispatchers.Main) {
+                            if (mileage > 0) mileageEditText.setText(mileage.toString())
+                        }
+                        break
                     }
-                    categoryResultSet.close()
-                    categoryStatement.close()
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "Error loading mileage: ${ex.message}", ex)
+            }
+        }
+    }
 
-                    val serviceQuery = """
-                        SELECT st.service_type_id, st.name, st.category_id, st.interval_km, sc.name as category_name
-                        FROM ServiceTypes st
-                        LEFT JOIN ServiceCategory sc ON st.category_id = sc.category_id
-                        ORDER BY st.category_id, st.name
-                    """
-
-                    val serviceStatement: Statement = connect.createStatement()
-                    val serviceResultSet: ResultSet = serviceStatement.executeQuery(serviceQuery)
-
-                    serviceTypes.clear()
-                    while (serviceResultSet.next()) {
-                        val serviceTypeId = serviceResultSet.getInt("service_type_id")
-                        val name = serviceResultSet.getString("name")
-                        val categoryId = serviceResultSet.getInt("category_id")
-                        val intervalKm = serviceResultSet.getInt("interval_km")
-                        val categoryName = serviceResultSet.getString("category_name")
-                        serviceTypes.add(ServiceType(serviceTypeId, name, categoryId, categoryName, intervalKm))
-                    }
-
-                    serviceResultSet.close()
-                    serviceStatement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        updateServiceTypeSpinner()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityMaintenance, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+    private fun loadServiceTypesWithCategories() {
+        progressOverlay.visibility = android.view.View.VISIBLE
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val arr = ApiClient.getServiceTypes()
+                serviceTypes.clear()
+                categories.clear()
+                val catMap = mutableMapOf<Int, String>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val catId   = obj.getInt("category_id")
+                    val catName = obj.optString("category", "")
+                    catMap[catId] = catName
+                    serviceTypes.add(ServiceType(
+                        obj.getInt("service_type_id"), obj.getString("name"),
+                        catId, catName, obj.optInt("interval_km", 0)
+                    ))
+                }
+                catMap.forEach { (id, name) -> categories.add(ServiceCategory(id, name)) }
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    updateServiceTypeSpinner()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading service types: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
                     Toast.makeText(this@MainActivityMaintenance, "Ошибка загрузки типов обслуживания", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -527,99 +478,31 @@ class MainActivityMaintenance : AppCompatActivity() {
 
     private fun saveMaintenanceToDatabase() {
         if (!validateInput()) return
-
+        addMaintenanceButton.isEnabled = false
+        progressOverlay.visibility = android.view.View.VISIBLE
         val date = dateEditText.text.toString().trim()
         val mileage = mileageEditText.text.toString().trim().toInt()
         val amount = amountEditText.text.toString().trim().toDoubleOrNull() ?: 0.0
         val nextServiceMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
-        val nextServiceDate = nextServiceDateEditText.text.toString().trim()
-        val description = descriptionEditText.text.toString().trim()
+        val nextServiceDate = nextServiceDateEditText.text.toString().trim().ifEmpty { null }
+        val description = descriptionEditText.text.toString().trim().ifEmpty { null }
         val carId = getCurrentCarId()
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    connect.autoCommit = false
-
-                    try {
-                        val insertQuery = """
-                            INSERT INTO Maintenance 
-                            (car_id, service_type_id, date, mileage, total_amount, description, 
-                             next_service_mileage, next_service_date) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """
-
-                        val preparedStatement: PreparedStatement = connect.prepareStatement(insertQuery)
-                        preparedStatement.setInt(1, carId)
-                        preparedStatement.setInt(2, selectedServiceTypeId)
-                        preparedStatement.setString(3, date)
-                        preparedStatement.setInt(4, mileage)
-                        preparedStatement.setDouble(5, amount)
-                        preparedStatement.setString(6, description)
-
-                        if (nextServiceMileage != null) {
-                            preparedStatement.setInt(7, nextServiceMileage)
-                        } else {
-                            preparedStatement.setNull(7, java.sql.Types.INTEGER)
-                        }
-
-                        if (nextServiceDate.isNotEmpty()) {
-                            preparedStatement.setString(8, nextServiceDate)
-                        } else {
-                            preparedStatement.setNull(8, java.sql.Types.VARCHAR)
-                        }
-
-                        val rowsAffected = preparedStatement.executeUpdate()
-                        preparedStatement.close()
-
-                        if (rowsAffected > 0) {
-                            val updateMileageQuery = """
-                                UPDATE Cars 
-                                SET mileage = ? 
-                                WHERE car_id = ? AND (mileage IS NULL OR mileage < ?)
-                            """
-
-                            val updateStatement = connect.prepareStatement(updateMileageQuery)
-                            updateStatement.setInt(1, mileage)
-                            updateStatement.setInt(2, carId)
-                            updateStatement.setInt(3, mileage)
-
-                            val updateRowsAffected = updateStatement.executeUpdate()
-                            updateStatement.close()
-
-                            connect.commit()
-
-                            withContext(Dispatchers.Main) {
-                                if (updateRowsAffected > 0) {
-                                    showSuccessMessage("Обслуживание добавлено и пробег обновлен!")
-                                } else {
-                                    showSuccessMessage("Обслуживание добавлено! Пробег не изменился")
-                                }
-                            }
-                        } else {
-                            connect.rollback()
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@MainActivityMaintenance, "Ошибка при добавлении обслуживания", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    } catch (ex: Exception) {
-                        connect.rollback()
-                        throw ex
-                    } finally {
-                        connect.autoCommit = true
-                        connect.close()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@MainActivityMaintenance, "Нет подключения к БД", Toast.LENGTH_SHORT).show()
-                    }
+                ApiClient.addMaintenance(
+                    carId, selectedServiceTypeId, date, mileage,
+                    amount, description, nextServiceMileage, nextServiceDate
+                )
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    showSuccessMessage("Обслуживание успешно добавлено!")
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error saving maintenance: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    addMaintenanceButton.isEnabled = true
                     Toast.makeText(this@MainActivityMaintenance, "Ошибка сохранения: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
             }
@@ -628,73 +511,35 @@ class MainActivityMaintenance : AppCompatActivity() {
 
     private fun updateMaintenanceInDatabase() {
         if (!validateInput()) return
-
+        addMaintenanceButton.isEnabled = false
+        progressOverlay.visibility = android.view.View.VISIBLE
         val date = dateEditText.text.toString().trim()
         val mileage = mileageEditText.text.toString().trim().toInt()
         val amount = amountEditText.text.toString().trim().toDoubleOrNull() ?: 0.0
         val nextServiceMileage = nextServiceMileageEditText.text.toString().trim().toIntOrNull()
-        val nextServiceDate = nextServiceDateEditText.text.toString().trim()
-        val description = descriptionEditText.text.toString().trim()
+        val nextServiceDate = nextServiceDateEditText.text.toString().trim().ifEmpty { null }
+        val description = descriptionEditText.text.toString().trim().ifEmpty { null }
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    val updateQuery = """
-                        UPDATE Maintenance 
-                        SET service_type_id = ?, date = ?, mileage = ?, total_amount = ?, 
-                            description = ?, next_service_mileage = ?, next_service_date = ?
-                        WHERE maintenance_id = ? AND car_id = ?
-                    """
-
-                    val preparedStatement: PreparedStatement = connect.prepareStatement(updateQuery)
-                    preparedStatement.setInt(1, selectedServiceTypeId)
-                    preparedStatement.setString(2, date)
-                    preparedStatement.setInt(3, mileage)
-                    preparedStatement.setDouble(4, amount)
-                    preparedStatement.setString(5, description)
-
-                    if (nextServiceMileage != null) {
-                        preparedStatement.setInt(6, nextServiceMileage)
-                    } else {
-                        preparedStatement.setNull(6, java.sql.Types.INTEGER)
-                    }
-
-                    if (nextServiceDate.isNotEmpty()) {
-                        preparedStatement.setString(7, nextServiceDate)
-                    } else {
-                        preparedStatement.setNull(7, java.sql.Types.VARCHAR)
-                    }
-
-                    preparedStatement.setInt(8, currentMaintenanceId!!)
-                    preparedStatement.setInt(9, currentCarId)
-
-                    val rowsAffected = preparedStatement.executeUpdate()
-                    preparedStatement.close()
-                    connect.close()
-
-                    withContext(Dispatchers.Main) {
-                        if (rowsAffected > 0) {
-                            Toast.makeText(this@MainActivityMaintenance,
-                                "Обслуживание успешно обновлено", Toast.LENGTH_SHORT).show()
-
-                            val resultIntent = Intent()
-                            resultIntent.putExtra("maintenance_id", currentMaintenanceId)
-                            setResult(RESULT_OK, resultIntent)
-                            finish()
-                        } else {
-                            Toast.makeText(this@MainActivityMaintenance,
-                                "Ошибка при обновлении обслуживания", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                ApiClient.updateMaintenance(
+                    currentCarId, currentMaintenanceId!!, selectedServiceTypeId, date, mileage,
+                    amount, description, nextServiceMileage, nextServiceDate
+                )
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = android.view.View.GONE
+                    Toast.makeText(this@MainActivityMaintenance, "Обслуживание успешно обновлено", Toast.LENGTH_SHORT).show()
+                    val resultIntent = Intent()
+                    resultIntent.putExtra("maintenance_id", currentMaintenanceId)
+                    setResult(RESULT_OK, resultIntent)
+                    finish()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error updating maintenance: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityMaintenance,
-                        "Ошибка обновления: ${ex.message}", Toast.LENGTH_LONG).show()
+                    progressOverlay.visibility = android.view.View.GONE
+                    addMaintenanceButton.isEnabled = true
+                    Toast.makeText(this@MainActivityMaintenance, "Ошибка обновления: ${ex.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

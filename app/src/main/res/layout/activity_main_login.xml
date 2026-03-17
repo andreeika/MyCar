@@ -161,4 +161,19 @@
 
         </com.google.android.material.card.MaterialCardView>
 
+    <!-- ProgressBar overlay -->
+    <FrameLayout
+        android:id="@+id/progressOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40E4F1FF"
+        android:visibility="gone"
+        android:elevation="10dp">
+        <ProgressBar
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:indeterminateTint="#228BE6" />
+    </FrameLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

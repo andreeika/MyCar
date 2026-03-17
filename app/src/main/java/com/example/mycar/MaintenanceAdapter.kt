@@ -94,12 +94,15 @@ class MaintenanceAdapter(
         val leftLayout: LinearLayout = view.findViewById(R.id.leftLayout)
 
         dateText.text = item.date
-        stationText.text = "След.: ${item.nextServiceDate}"
+        stationText.text = if (item.nextServiceDate.isNotEmpty())
+            "След.: ${item.nextServiceDate}" else "След. дата не указана"
         stationText.setTextColor(context.getColor(R.color.my_home_bar_color))
-        fuelText.text = item.serviceTypeName
+        fuelText.text = if (item.serviceTypeName.isNotEmpty() && item.serviceTypeName != "null")
+            item.serviceTypeName else "Тип не указан"
         fuelText.setTextColor(context.getColor(R.color.black))
         mileageText.text = "${item.mileage.toInt()} км"
-        volumeText.text = if (item.description.isNotEmpty()) item.description else "Без описания"
+        volumeText.text = if (item.description.isNotEmpty() && item.description != "null")
+            item.description else "Без описания"
         volumeText.maxLines = 1
         volumeText.ellipsize = android.text.TextUtils.TruncateAt.END
         priceText.visibility = View.GONE

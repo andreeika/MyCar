@@ -10,9 +10,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
-import java.sql.Connection
-import java.sql.PreparedStatement
-import java.sql.ResultSet
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +21,7 @@ class MainActivityHistoryRef : AppCompatActivity() {
     private lateinit var imageViewDelete: ImageView
     private lateinit var textViewTitle: TextView
     private lateinit var adapter: RefuelingAdapter
+    private lateinit var progressOverlay: android.widget.FrameLayout
 
     private var currentCarId: Int = 0
     private var currentCarModel: String = ""
@@ -56,6 +54,7 @@ class MainActivityHistoryRef : AppCompatActivity() {
         imageViewCancel = findViewById(R.id.imageViewCancel)
         imageViewDelete = findViewById(R.id.imageViewDelete)
         textViewTitle = findViewById(R.id.textView2)
+        progressOverlay = findViewById(R.id.progressOverlay)
 
         adapter = RefuelingAdapter(
             context = this,
@@ -112,59 +111,46 @@ class MainActivityHistoryRef : AppCompatActivity() {
     }
 
     private fun loadRefuelings() {
+        progressOverlay.visibility = View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect: Connection? = connectionHelper.connectionclass()
+                val arr = ApiClient.getRefueling(currentCarId)
+                val newRefuelings = mutableListOf<RefuelingItem>()
+                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
 
-                if (connect != null) {
-                    val newRefuelings = mutableListOf<RefuelingItem>()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val dateStr = obj.optString("date", "")
+                    val parsedDate = try {
+                        SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(dateStr) ?: Date()
+                    } catch (e: Exception) { Date() }
 
-                    val query = """
-                        SELECT r.refueling_id, r.car_id, r.date, r.mileage, r.volume, 
-                               r.price_per_liter, r.total_amount, r.full_tank,
-                               f.name as fuel_name, g.name as station_name
-                        FROM Refueling r
-                        LEFT JOIN Fuel f ON r.fuel_id = f.fuel_id
-                        LEFT JOIN GasStations g ON r.station_id = g.station_id
-                        WHERE r.car_id = ?
-                        ORDER BY r.date DESC, r.refueling_id DESC
-                    """.trimIndent()
+                    newRefuelings.add(RefuelingItem(
+                        id = obj.getInt("refueling_id"),
+                        carId = currentCarId,
+                        date = parsedDate,
+                        fuelName = obj.optString("fuel", ""),
+                        stationName = obj.optString("station", ""),
+                        mileage = obj.optDouble("mileage", 0.0),
+                        volume = obj.optDouble("volume", 0.0),
+                        price = obj.optDouble("price_per_liter", 0.0),
+                        total = obj.optDouble("total_amount", 0.0),
+                        fullTank = obj.optBoolean("full_tank", false)
+                    ))
+                }
 
-                    val stmt: PreparedStatement = connect.prepareStatement(query)
-                    stmt.setInt(1, currentCarId)
-                    val rs: ResultSet = stmt.executeQuery()
+                refuelings.clear()
+                refuelings.addAll(newRefuelings)
 
-                    while (rs.next()) {
-                        newRefuelings.add(RefuelingItem(
-                            id = rs.getInt("refueling_id"),
-                            carId = rs.getInt("car_id"),
-                            date = rs.getDate("date") ?: Date(),
-                            fuelName = rs.getString("fuel_name") ?: "",
-                            stationName = rs.getString("station_name") ?: "",
-                            mileage = rs.getDouble("mileage"),
-                            volume = rs.getDouble("volume"),
-                            price = rs.getDouble("price_per_liter"),
-                            total = rs.getDouble("total_amount"),
-                            fullTank = rs.getBoolean("full_tank")
-                        ))
-                    }
-
-                    rs.close()
-                    stmt.close()
-                    connect.close()
-
-                    refuelings.clear()
-                    refuelings.addAll(newRefuelings)
-
-                    withContext(Dispatchers.Main) {
-                        adapter.updateData(newRefuelings)
-                        updateEmptyState()
-                    }
+                withContext(Dispatchers.Main) {
+                    adapter.updateData(newRefuelings)
+                    progressOverlay.visibility = View.GONE
+                    updateEmptyState()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading refuelings: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivityHistoryRef,
                         "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
@@ -214,64 +200,30 @@ class MainActivityHistoryRef : AppCompatActivity() {
     private fun deleteSelectedRefuelings(ids: List<Int>) {
         coroutineScope.launch(Dispatchers.IO) {
             try {
-                val connectionHelper = ConnectionHelper()
-                val connect: Connection? = connectionHelper.connectionclass()
-
-                if (connect != null) {
-                    connect.autoCommit = false
-
+                var deletedCount = 0
+                for (id in ids) {
                     try {
-                        val query = "DELETE FROM refueling WHERE refueling_id = ? AND car_id = ?"
-                        val stmt: PreparedStatement = connect.prepareStatement(query)
-
-                        var deletedCount = 0
-                        for (id in ids) {
-                            stmt.setInt(1, id)
-                            stmt.setInt(2, currentCarId)
-                            deletedCount += stmt.executeUpdate()
-                        }
-
-                        stmt.close()
-
-                        if (deletedCount > 0) {
-                            connect.commit()
-                        } else {
-                            connect.rollback()
-                        }
-
-                        connect.autoCommit = true
-                        connect.close()
-
-                        withContext(Dispatchers.Main) {
-                            if (deletedCount > 0) {
-                                Toast.makeText(
-                                    this@MainActivityHistoryRef,
-                                    "Удалено записей: $deletedCount",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-
-                                adapter.setSelectionMode(false)
-                                loadRefuelings()
-                            } else {
-                                Toast.makeText(
-                                    this@MainActivityHistoryRef,
-                                    "Ошибка при удалении",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                adapter.setSelectionMode(false)
-                            }
-                        }
+                        ApiClient.deleteRefueling(currentCarId, id)
+                        deletedCount++
                     } catch (ex: Exception) {
-                        connect.rollback()
-                        connect.autoCommit = true
-                        throw ex
+                        Log.e(TAG, "Error deleting refueling $id: ${ex.message}")
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (deletedCount > 0) {
+                        Toast.makeText(this@MainActivityHistoryRef, "Удалено записей: $deletedCount", Toast.LENGTH_SHORT).show()
+                        adapter.setSelectionMode(false)
+                        loadRefuelings()
+                    } else {
+                        Toast.makeText(this@MainActivityHistoryRef, "Ошибка при удалении", Toast.LENGTH_SHORT).show()
+                        adapter.setSelectionMode(false)
                     }
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error deleting refuelings: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityHistoryRef,
-                        "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityHistoryRef, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                     adapter.setSelectionMode(false)
                 }
             }

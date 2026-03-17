@@ -57,4 +57,8 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("androidx.drawerlayout:drawerlayout:1.2.0")
+
+    // HTTP client for API
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.json:json:20231013")
 }
