@@ -69,6 +69,26 @@
             android:padding="16dp">
 
             <!-- Дата обслуживания -->
+
+            <TextView
+                android:id="@+id/nextServiceDateEditText"
+                android:layout_width="180dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="36dp"
+
+                android:layout_weight="1"
+                android:background="@drawable/bg_edit_text"
+                android:clickable="true"
+                android:drawableEnd="@drawable/calendar"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:hint="дд.мм.гггг"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/nextServiceMileageEditText" />
+
             <TextView
                 android:id="@+id/textViewDateLabel"
                 android:layout_width="100dp"
@@ -78,21 +98,6 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <EditText
-                android:id="@+id/dateEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:clickable="true"
-                android:drawableEnd="@drawable/calendar"
-                android:drawablePadding="4dp"
-                android:focusable="false"
-                android:hint="дд.мм.гггг"
-                android:paddingStart="12dp"
-                android:paddingEnd="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
             <!-- Тип обслуживания -->
@@ -208,22 +213,6 @@
                 app:layout_constraintTop_toBottomOf="@+id/amountEditText" />
 
             <EditText
-                android:id="@+id/nextServiceDateEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="36dp"
-                android:clickable="true"
-                android:drawableEnd="@drawable/calendar"
-                android:drawablePadding="4dp"
-                android:focusable="false"
-                android:hint="дд.мм.гггг"
-                android:paddingStart="12dp"
-                android:paddingEnd="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/nextServiceMileageEditText" />
-
-            <EditText
                 android:id="@+id/descriptionEditText"
                 android:layout_width="320dp"
                 android:layout_height="74dp"
@@ -238,6 +227,24 @@
                 app:layout_constraintHorizontal_bias="0.49"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textViewNextServiceLabel4" />
+
+            <TextView
+                android:id="@+id/dateEditText"
+                android:layout_width="180dp"
+                android:layout_height="40dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_edit_text"
+                android:clickable="true"
+
+                android:drawableEnd="@drawable/calendar"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:hint="дд.мм.гггг"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:textSize="16sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>

@@ -22,6 +22,7 @@ class MainActivityHistoryMainte : AppCompatActivity() {
     private lateinit var textViewTitle: TextView
     private lateinit var adapter: MaintenanceAdapter
     private lateinit var progressOverlay: android.widget.FrameLayout
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
     private var currentCarId: Int = 0
     private var currentCarModel: String = ""
@@ -64,6 +65,9 @@ class MainActivityHistoryMainte : AppCompatActivity() {
         imageViewDelete = findViewById(R.id.imageViewDelete2)
         textViewTitle = findViewById(R.id.textView2)
         progressOverlay = findViewById(R.id.progressOverlay)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
+        swipeRefresh.setOnRefreshListener { loadMaintenanceFromDatabase() }
 
         textViewTitle.text = "История"
 
@@ -159,6 +163,7 @@ class MainActivityHistoryMainte : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     adapter.updateData(newMaintenanceList)
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     updateEmptyState()
                 }
             } catch (ex: Exception) {
@@ -166,9 +171,9 @@ class MainActivityHistoryMainte : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivityHistoryMainte,
-                        "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                        "Ошибка загрузки данных", Toast.LENGTH_LONG).show()
                     emptyTextView.visibility = View.VISIBLE
-                    emptyTextView.text = "Ошибка: ${ex.localizedMessage}"
+                    emptyTextView.text = "Ошибка загрузки данных"
                 }
             }
         }
@@ -234,7 +239,7 @@ class MainActivityHistoryMainte : AppCompatActivity() {
             } catch (ex: Exception) {
                 Log.e(TAG, "Error deleting maintenance: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityHistoryMainte, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityHistoryMainte, "${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }
