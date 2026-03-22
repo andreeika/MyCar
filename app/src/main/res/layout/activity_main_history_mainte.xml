@@ -8,7 +8,6 @@
     android:background="#E4F1FF"
     tools:context=".MainActivityHistoryMainte">
 
-
     <TextView
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
@@ -49,37 +48,39 @@
         app:layout_constraintVertical_bias="0.02"
         app:srcCompat="@drawable/cancel" />
 
-
-    <!-- Список заправок -->
-
-    <!-- Сообщение при пустом списке -->
-
-    <ListView
-        android:id="@+id/listViewRefuelings"
-        android:layout_width="380dp"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefresh"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:divider="@color/grey"
-        android:dividerHeight="1dp"
-        android:padding="8dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.516"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView2"
-        app:layout_constraintVertical_bias="1.0" />
+        app:layout_constraintTop_toBottomOf="@+id/textView2">
+
+        <ListView
+            android:id="@+id/listViewRefuelings"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@color/grey"
+            android:dividerHeight="1dp"
+            android:padding="8dp" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     <TextView
         android:id="@+id/emptyTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
         android:text="Нет данных"
         android:textColor="@color/grey"
         android:textSize="18sp"
-        android:visibility="gone" />
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- ProgressBar overlay -->
     <FrameLayout
         android:id="@+id/progressOverlay"
         android:layout_width="0dp"

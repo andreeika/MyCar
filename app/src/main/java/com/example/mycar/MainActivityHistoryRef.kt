@@ -22,6 +22,7 @@ class MainActivityHistoryRef : AppCompatActivity() {
     private lateinit var textViewTitle: TextView
     private lateinit var adapter: RefuelingAdapter
     private lateinit var progressOverlay: android.widget.FrameLayout
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
     private var currentCarId: Int = 0
     private var currentCarModel: String = ""
@@ -55,6 +56,9 @@ class MainActivityHistoryRef : AppCompatActivity() {
         imageViewDelete = findViewById(R.id.imageViewDelete)
         textViewTitle = findViewById(R.id.textView2)
         progressOverlay = findViewById(R.id.progressOverlay)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
+        swipeRefresh.setOnRefreshListener { loadRefuelings() }
 
         adapter = RefuelingAdapter(
             context = this,
@@ -145,14 +149,16 @@ class MainActivityHistoryRef : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     adapter.updateData(newRefuelings)
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     updateEmptyState()
                 }
             } catch (ex: Exception) {
                 Log.e(TAG, "Error loading refuelings: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     Toast.makeText(this@MainActivityHistoryRef,
-                        "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        "${friendlyError(ex)}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -223,7 +229,7 @@ class MainActivityHistoryRef : AppCompatActivity() {
             } catch (ex: Exception) {
                 Log.e(TAG, "Error deleting refuelings: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivityHistoryRef, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityHistoryRef, "${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                     adapter.setSelectionMode(false)
                 }
             }

@@ -282,3 +282,18 @@ object ApiClient {
 }
 
 class ApiException(val code: Int, message: String) : Exception(message)
+
+fun friendlyError(ex: Exception): String = when (ex) {
+    is java.net.ConnectException,
+    is java.net.SocketTimeoutException,
+    is java.net.UnknownHostException -> "Сервер недоступен. Проверьте подключение к интернету."
+    is java.io.IOException -> "Ошибка сети. Проверьте подключение к интернету."
+    is ApiException -> when (ex.code) {
+        401 -> "Неверный логин или пароль."
+        404 -> "Данные не найдены."
+        409 -> "Такой пользователь уже существует."
+        in 500..599 -> "Ошибка сервера. Попробуйте позже."
+        else -> "Ошибка: ${ex.code}"
+    }
+    else -> "Что-то пошло не так. Попробуйте ещё раз."
+}

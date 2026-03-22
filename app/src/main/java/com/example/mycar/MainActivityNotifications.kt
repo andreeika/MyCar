@@ -31,6 +31,7 @@ class MainActivityNotifications : AppCompatActivity() {
     private lateinit var recyclerViewRecommendations: RecyclerView
     private lateinit var recyclerViewInfo: RecyclerView
     private lateinit var progressOverlay: FrameLayout
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
     private lateinit var notificationManager: NotificationManager
     private var isLoaded = false
@@ -69,6 +70,9 @@ class MainActivityNotifications : AppCompatActivity() {
         recyclerViewRecommendations = findViewById(R.id.recyclerViewRecommendations)
         recyclerViewInfo = findViewById(R.id.recyclerViewInfo)
         progressOverlay = findViewById(R.id.progressOverlay)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
+        swipeRefresh.setOnRefreshListener { loadNotifications() }
 
         recyclerViewUrgent.layoutManager = LinearLayoutManager(this)
         recyclerViewRecommendations.layoutManager = LinearLayoutManager(this)
@@ -92,11 +96,13 @@ class MainActivityNotifications : AppCompatActivity() {
             try {
                 val all = notificationManager.getAllNotifications(this@MainActivityNotifications)
                 progressOverlay.visibility = View.GONE
+                swipeRefresh.isRefreshing = false
                 updateUI(all.urgent, all.recommendations, all.info)
                 isLoaded = true
             } catch (ex: Exception) {
                 ex.printStackTrace()
                 progressOverlay.visibility = View.GONE
+                swipeRefresh.isRefreshing = false
                 Toast.makeText(this@MainActivityNotifications, "Ошибка загрузки уведомлений", Toast.LENGTH_SHORT).show()
             }
         }

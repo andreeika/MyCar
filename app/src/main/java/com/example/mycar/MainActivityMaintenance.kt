@@ -20,11 +20,11 @@ import java.util.*
 class MainActivityMaintenance : AppCompatActivity() {
 
     private lateinit var serviceTypeSpinner: Spinner
-    private lateinit var dateEditText: EditText
+    private lateinit var dateEditText: TextView
     private lateinit var mileageEditText: EditText
     private lateinit var amountEditText: EditText
     private lateinit var nextServiceMileageEditText: EditText
-    private lateinit var nextServiceDateEditText: EditText
+    private lateinit var nextServiceDateEditText: TextView
     private lateinit var descriptionEditText: EditText
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
@@ -246,7 +246,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         }
     }
 
-    private fun showDatePicker(editText: EditText) {
+    private fun showDatePicker(editText: TextView) {
         val calendar = Calendar.getInstance()
 
         try {
@@ -296,7 +296,7 @@ class MainActivityMaintenance : AppCompatActivity() {
                     calculateNextServiceDate(nextServiceMileage, currentMileage)
                 } else {
                     nextServiceMileageEditText.text.clear()
-                    nextServiceDateEditText.text.clear()
+
                 }
             }
         } catch (e: NumberFormatException) {
@@ -327,10 +327,10 @@ class MainActivityMaintenance : AppCompatActivity() {
                 }
             }
 
-            nextServiceDateEditText.text.clear()
+
         } catch (e: Exception) {
             Log.e(TAG, "Error calculating next service date: ${e.message}")
-            nextServiceDateEditText.text.clear()
+
         }
     }
 
@@ -503,7 +503,7 @@ class MainActivityMaintenance : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     addMaintenanceButton.isEnabled = true
-                    Toast.makeText(this@MainActivityMaintenance, "Ошибка сохранения: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityMaintenance, "Ошибка сохранения: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -539,7 +539,7 @@ class MainActivityMaintenance : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     addMaintenanceButton.isEnabled = true
-                    Toast.makeText(this@MainActivityMaintenance, "Ошибка обновления: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityMaintenance, "Ошибка обновления: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }

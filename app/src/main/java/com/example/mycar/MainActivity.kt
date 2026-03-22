@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navUserName: TextView
     private lateinit var navUserEmail: TextView
     private lateinit var progressOverlay: android.widget.FrameLayout
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
     private var userEmail: String = ""
 
@@ -147,6 +148,9 @@ class MainActivity : AppCompatActivity() {
         carsContainer = headerView.findViewById(R.id.carsContainer)
         noCarsText = headerView.findViewById(R.id.noCarsText)
         progressOverlay = findViewById(R.id.progressOverlay)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
+        swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
+        swipeRefresh.setOnRefreshListener { loadUserCars(forceReload = true) }
     }
 
     private fun setupStatusBarColors() {
@@ -398,6 +402,7 @@ class MainActivity : AppCompatActivity() {
                     updateNavigationHeader()
                     isCarsLoaded = true
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     selectedCarId
                 }
 
@@ -418,7 +423,8 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Error loading cars: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
-                    Toast.makeText(this@MainActivity, "Ошибка загрузки: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    swipeRefresh.isRefreshing = false
+                    Toast.makeText(this@MainActivity, "${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }

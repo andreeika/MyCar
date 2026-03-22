@@ -31,7 +31,7 @@ class MainActivityRefueling : AppCompatActivity() {
     private lateinit var mileageEditText: EditText
     private lateinit var volumeEditText: EditText
     private lateinit var priceEditText: EditText
-    private lateinit var dateEditText: EditText
+    private lateinit var dateEditText: TextView
     private lateinit var fullTankCheckBox: CheckBox
     private lateinit var totalAmountTextView: TextView
     private lateinit var addRefuelingButton: Button
@@ -429,7 +429,7 @@ class MainActivityRefueling : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     addRefuelingButton.isEnabled = true
-                    Toast.makeText(this@MainActivityRefueling, "Ошибка: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityRefueling, "${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -464,7 +464,7 @@ class MainActivityRefueling : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     addRefuelingButton.isEnabled = true
-                    Toast.makeText(this@MainActivityRefueling, "Ошибка сохранения: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityRefueling, "Ошибка сохранения: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }

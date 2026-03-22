@@ -594,7 +594,7 @@ class MainActivityAddCar : AppCompatActivity() {
             } catch (ex: Exception) {
                 withContext(Dispatchers.Main) {
                     deleteButton.isEnabled = true; deleteButton.text = "Удалить"
-                    Toast.makeText(this@MainActivityAddCar, "Ошибка удаления: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityAddCar, "Ошибка удаления: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -651,7 +651,7 @@ class MainActivityAddCar : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     saveButton.isEnabled = true
                     saveButton.text = if (isEditMode) "Сохранить изменения" else "Добавить авто"
-                    Toast.makeText(this@MainActivityAddCar, "Ошибка: ${ex.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MainActivityAddCar, "Ошибка: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
                 }
             }
         }

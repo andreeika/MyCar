@@ -69,6 +69,7 @@ class MainActivityStatistics : AppCompatActivity() {
     private lateinit var barChart: BarChart
     private lateinit var progressOverlay: android.widget.FrameLayout
     private lateinit var scrollViewContent: android.widget.ScrollView
+    private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
     private val userCars = mutableListOf<Car>()
     private var selectedCarId: Int = -1
@@ -138,6 +139,8 @@ class MainActivityStatistics : AppCompatActivity() {
             barChart = findViewById(R.id.barChart)
             progressOverlay = findViewById(R.id.progressOverlay)
             scrollViewContent = findViewById(R.id.scrollViewContent)
+            swipeRefresh = findViewById(R.id.swipeRefresh)
+            swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
 
             setDefaultDates()
 
@@ -167,6 +170,7 @@ class MainActivityStatistics : AppCompatActivity() {
         buttonApply.setOnClickListener { loadStatistics() }
         editTextDateFrom.setOnClickListener { showDatePicker(editTextDateFrom) }
         editTextDateTo.setOnClickListener { showDatePicker(editTextDateTo) }
+        swipeRefresh.setOnRefreshListener { loadStatistics() }
     }
 
     private fun showDatePicker(target: TextView) {
@@ -377,6 +381,7 @@ class MainActivityStatistics : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     scrollViewContent.visibility = View.VISIBLE
                     updateUI(statistics, monthlyStats, fuelConsumption)
                 }
@@ -384,6 +389,7 @@ class MainActivityStatistics : AppCompatActivity() {
                 Log.e("Statistics", "Error loading statistics: ${ex.message}", ex)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
+                    swipeRefresh.isRefreshing = false
                     Toast.makeText(this@MainActivityStatistics, "Ошибка загрузки статистики", Toast.LENGTH_SHORT).show()
                 }
             }

@@ -393,7 +393,7 @@ class MainActivitySettings : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivitySettings, "Ошибка удаления: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivitySettings, "Ошибка удаления: ${friendlyError(e)}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
