@@ -53,6 +53,13 @@ class RefuelingUpdate(RefuelingCreate):
     pass
 
 
+# Service types
+class ServiceTypeCreate(BaseModel):
+    name: str
+    interval_km: int = 0
+    category_id: int
+
+
 # Maintenance
 class MaintenanceCreate(BaseModel):
     service_type_id: int
@@ -65,3 +72,32 @@ class MaintenanceCreate(BaseModel):
 
 class MaintenanceUpdate(MaintenanceCreate):
     pass
+
+
+# Email verification
+class SendCodeRequest(BaseModel):
+    email: str
+
+class VerifyAndRegisterRequest(BaseModel):
+    full_name: str
+    email: str
+    username: str
+    password: str
+    code: str
+
+
+# Settings change verification
+class SendChangeCodeRequest(BaseModel):
+    user_id: int
+    change_type: str   # "email" or "password"
+    new_email: Optional[str] = None  # only for change_type="email"
+
+class VerifyChangeRequest(BaseModel):
+    user_id: int
+    change_type: str
+    code: str
+    # for password change
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+    # for email change
+    new_email: Optional[str] = None

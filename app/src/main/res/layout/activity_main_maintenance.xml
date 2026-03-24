@@ -13,6 +13,7 @@
         android:id="@+id/imageView12"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.043"
@@ -25,7 +26,8 @@
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Новое обслуживание"
+        android:layout_marginTop="8dp"
+        android:text="Обслуживание"
         android:textColor="#228BE6"
         android:textSize="24sp"
         android:textStyle="bold"
@@ -113,16 +115,40 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/textViewDateLabel" />
 
-            <Spinner
+            <TextView
                 android:id="@+id/serviceTypeSpinner"
-                android:layout_width="250dp"
+                android:layout_width="wrap_content"
                 android:layout_height="40dp"
+                android:layout_marginStart="8dp"
                 android:layout_marginTop="16dp"
-                android:paddingStart="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_edit_text"
+                android:clickable="true"
+                android:ellipsize="end"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:hint="Выберите тип обслуживания"
+                android:maxLines="1"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toStartOf="@+id/addServiceTypeButton"
+                app:layout_constraintStart_toEndOf="@+id/textViewServiceTypeLabel"
                 app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
 
             <!-- Пробег -->
+            <Button
+                android:id="@+id/addServiceTypeButton"
+                android:layout_width="33dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="16dp"
+                android:backgroundTint="#228BE6"
+                android:padding="0dp"
+                android:text="+"
+                android:textSize="20sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
+
             <TextView
                 android:id="@+id/textViewMileageLabel"
                 android:layout_width="100dp"
@@ -267,6 +293,7 @@
         android:id="@+id/imageViewCancel"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
         android:contentDescription="Отмена"
         android:tint="#228BE6"

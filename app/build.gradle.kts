@@ -34,7 +34,8 @@ android {
         jvmTarget = "11"
     }
     buildFeatures {
-        viewBinding = true
+        viewBinding = false
+        dataBinding = false
     }
     buildToolsVersion = "35.0.0"
 }
@@ -62,4 +63,16 @@ dependencies {
     // HTTP client for API
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.json:json:20231013")
+
+    // CameraX
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // WorkManager for background notifications
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }

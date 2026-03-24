@@ -19,7 +19,7 @@ import java.util.*
 
 class MainActivityMaintenance : AppCompatActivity() {
 
-    private lateinit var serviceTypeSpinner: Spinner
+    private lateinit var serviceTypeView: TextView
     private lateinit var dateEditText: TextView
     private lateinit var mileageEditText: EditText
     private lateinit var amountEditText: EditText
@@ -29,6 +29,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     private lateinit var addMaintenanceButton: Button
     private lateinit var cancelImageView: ImageView
     private lateinit var progressOverlay: android.widget.FrameLayout
+    private lateinit var addServiceTypeButton: Button
 
 
     private lateinit var history: ImageView
@@ -82,7 +83,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     }
 
     private fun initializeViews() {
-        serviceTypeSpinner = findViewById(R.id.serviceTypeSpinner)
+        serviceTypeView = findViewById(R.id.serviceTypeSpinner)
         dateEditText = findViewById(R.id.dateEditText)
         mileageEditText = findViewById(R.id.mileageEditText)
         amountEditText = findViewById(R.id.amountEditText)
@@ -93,6 +94,7 @@ class MainActivityMaintenance : AppCompatActivity() {
         cancelImageView = findViewById(R.id.imageViewCancel)
         history = findViewById(R.id.imageView12)
         progressOverlay = findViewById(R.id.progressOverlay)
+        addServiceTypeButton = findViewById(R.id.addServiceTypeButton)
 
     }
 
@@ -146,36 +148,14 @@ class MainActivityMaintenance : AppCompatActivity() {
     private fun selectServiceTypeInSpinner(serviceTypeId: Int) {
         val service = serviceTypes.find { it.serviceTypeId == serviceTypeId }
         if (service != null) {
-            var position = 0
-            var found = false
-
-            for (category in categories) {
-                if (found) break
-                position++
-
-                val categoryServices = serviceTypes.filter { it.categoryId == category.categoryId }
-                for ((index, s) in categoryServices.withIndex()) {
-                    if (s.serviceTypeId == serviceTypeId) {
-                        found = true
-                        break
-                    }
-                    position++
-                }
-            }
-
-            if (found && position < serviceTypeSpinner.adapter.count) {
-                serviceTypeSpinner.setSelection(position)
-            }
+            serviceTypeView.text = service.name
+            serviceTypeView.setTextColor(android.graphics.Color.BLACK)
         }
     }
 
     private fun setupClickListeners() {
-        serviceTypeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
-                handleServiceTypeSelection(position)
-            }
-
-            override fun onNothingSelected(parent: AdapterView<*>) {}
+        serviceTypeView.setOnClickListener {
+            showServiceTypeSearchDialog()
         }
 
         cancelImageView.setOnClickListener {
@@ -215,35 +195,167 @@ class MainActivityMaintenance : AppCompatActivity() {
             val intent = Intent(this@MainActivityMaintenance, MainActivityHistoryMainte::class.java)
             startActivity(intent)
         }
+
+        addServiceTypeButton.setOnClickListener {
+            showAddServiceTypeDialog()
+        }
     }
 
-    private fun handleServiceTypeSelection(position: Int) {
-        var serviceIndex = -1
-        var itemCount = 0
+    private fun showAddServiceTypeDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_add_service_type, null)
+        val nameEdit = dialogView.findViewById<EditText>(R.id.editServiceTypeName)
+        val intervalEdit = dialogView.findViewById<EditText>(R.id.editServiceTypeInterval)
+        val categorySpinner = dialogView.findViewById<Spinner>(R.id.spinnerCategory)
 
-        for ((catIndex, category) in categories.withIndex()) {
-            if (position == itemCount) {
-                return
-            }
-            itemCount++
+        val categoryNames = categories.map { it.name }
+        val catAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, categoryNames)
+        catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        categorySpinner.adapter = catAdapter
 
-            val catServices = serviceTypes.filter { it.categoryId == category.categoryId }
-            for ((servicePos, service) in catServices.withIndex()) {
-                if (position == itemCount) {
-                    serviceIndex = serviceTypes.indexOf(service)
-                    break
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Новый тип обслуживания")
+            .setView(dialogView)
+            .setPositiveButton("Добавить") { _, _ ->
+                val name = nameEdit.text.toString().trim()
+                val interval = intervalEdit.text.toString().trim().toIntOrNull() ?: 0
+                val catIndex = categorySpinner.selectedItemPosition
+                if (name.isEmpty()) {
+                    Toast.makeText(this, "Введите название", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
                 }
-                itemCount++
+                if (catIndex < 0 || catIndex >= categories.size) {
+                    Toast.makeText(this, "Выберите категорию", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val categoryId = categories[catIndex].categoryId
+                saveNewServiceType(name, interval, categoryId)
             }
-            if (serviceIndex != -1) break
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun saveNewServiceType(name: String, intervalKm: Int, categoryId: Int) {
+        // Проверка на дубликат локально
+        val duplicate = serviceTypes.find {
+            it.name.trim().lowercase() == name.trim().lowercase() && it.categoryId == categoryId
+        }
+        if (duplicate != null) {
+            Toast.makeText(this, "Такой тип уже существует", Toast.LENGTH_SHORT).show()
+            selectedServiceTypeId = duplicate.serviceTypeId
+            selectServiceTypeInSpinner(duplicate.serviceTypeId)
+            return
         }
 
-        if (serviceIndex >= 0 && serviceIndex < serviceTypes.size) {
-            selectedServiceTypeId = serviceTypes[serviceIndex].serviceTypeId
-            val selectedService = serviceTypes[serviceIndex].name
-            Log.d(TAG, "Selected service type: $selectedService (ID: $selectedServiceTypeId)")
-            calculateNextServiceInfo()
+        progressOverlay.visibility = View.VISIBLE
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val result = ApiClient.addServiceType(name, intervalKm, categoryId)
+                val newId = result.getInt("service_type_id")
+                val catName = categories.find { it.categoryId == categoryId }?.name ?: ""
+                val newType = ServiceType(newId, name, categoryId, catName, intervalKm)
+                serviceTypes.add(newType)
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    updateServiceTypeSpinner()
+                    // выбираем только что добавленный тип
+                    selectedServiceTypeId = newId
+                    selectServiceTypeInSpinner(newId)
+                    Toast.makeText(this@MainActivityMaintenance, "Тип добавлен", Toast.LENGTH_SHORT).show()
+                }
+            } catch (ex: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    val msg = if (ex is ApiException && ex.code == 409)
+                        "Такой тип обслуживания уже существует"
+                    else friendlyError(ex)
+                    Toast.makeText(this@MainActivityMaintenance, msg, Toast.LENGTH_LONG).show()
+                }
+            }
         }
+    }
+
+    private fun showServiceTypeSearchDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_service_type_search, null)
+        val searchView = dialogView.findViewById<SearchView>(R.id.searchView)
+        val listView = dialogView.findViewById<ListView>(R.id.listViewServiceTypes)
+
+        // Плоский список: категория-заголовок + элементы
+        data class ListItem(val label: String, val serviceType: ServiceType?, val isHeader: Boolean)
+
+        fun buildItems(query: String): List<ListItem> {
+            val items = mutableListOf<ListItem>()
+            val q = query.lowercase().trim()
+            for (cat in categories) {
+                val filtered = serviceTypes.filter {
+                    it.categoryId == cat.categoryId &&
+                    (q.isEmpty() || it.name.lowercase().contains(q))
+                }
+                if (filtered.isNotEmpty()) {
+                    items.add(ListItem("— ${cat.name} —", null, true))
+                    filtered.forEach { st ->
+                        val interval = if (st.intervalKm > 0) " (каждые ${st.intervalKm} км)" else " (по необходимости)"
+                        items.add(ListItem(st.name + interval, st, false))
+                    }
+                }
+            }
+            return items
+        }
+
+        var currentItems = buildItems("")
+
+        val adapter = object : ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_list_item_1,
+            currentItems.map { it.label }.toMutableList()
+        ) {
+            override fun isEnabled(position: Int) = !currentItems[position].isHeader
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val v = super.getView(position, convertView, parent)
+                val tv = v as android.widget.TextView
+                if (currentItems[position].isHeader) {
+                    tv.setTextColor(android.graphics.Color.parseColor("#228BE6"))
+                    tv.setTypeface(null, android.graphics.Typeface.BOLD)
+                    tv.textSize = 13f
+                } else {
+                    tv.setTextColor(android.graphics.Color.BLACK)
+                    tv.setTypeface(null, android.graphics.Typeface.NORMAL)
+                    tv.textSize = 15f
+                }
+                return v
+            }
+        }
+        listView.adapter = adapter
+
+        var dialog: androidx.appcompat.app.AlertDialog? = null
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val item = currentItems[position]
+            if (!item.isHeader && item.serviceType != null) {
+                selectedServiceTypeId = item.serviceType.serviceTypeId
+                serviceTypeView.text = item.serviceType.name
+                serviceTypeView.setTextColor(android.graphics.Color.BLACK)
+                calculateNextServiceInfo()
+                dialog?.dismiss()
+            }
+        }
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?) = false
+            override fun onQueryTextChange(newText: String?): Boolean {
+                currentItems = buildItems(newText ?: "")
+                adapter.clear()
+                adapter.addAll(currentItems.map { it.label })
+                adapter.notifyDataSetChanged()
+                return true
+            }
+        })
+
+        dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Тип обслуживания")
+            .setView(dialogView)
+            .setNegativeButton("Отмена", null)
+            .create()
+        dialog.show()
     }
 
     private fun showDatePicker(editText: TextView) {
@@ -434,43 +546,7 @@ class MainActivityMaintenance : AppCompatActivity() {
     }
 
     private fun updateServiceTypeSpinner() {
-        val serviceTypeItems = mutableListOf<String>()
-
-        val servicesByCategory = serviceTypes.groupBy { it.categoryId }
-
-        for (category in categories) {
-            val categoryServices = servicesByCategory[category.categoryId]
-            if (categoryServices != null && categoryServices.isNotEmpty()) {
-                serviceTypeItems.add("--- ${category.name} ---")
-                categoryServices.forEach { service ->
-                    val intervalText = if (service.intervalKm > 0) "каждые ${service.intervalKm} км" else "по необходимости"
-                    val displayName = "${service.name} ($intervalText)"
-                    serviceTypeItems.add(displayName)
-                }
-            }
-        }
-
-        val adapter = object : ArrayAdapter<String>(
-            this,
-            android.R.layout.simple_spinner_item,
-            serviceTypeItems
-        ) {
-            override fun isEnabled(position: Int): Boolean {
-                return !serviceTypeItems[position].startsWith("---")
-            }
-
-            override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
-                val view = super.getDropDownView(position, convertView, parent)
-                view.setBackgroundColor(ContextCompat.getColor(this@MainActivityMaintenance, R.color.white))
-                return view
-            }
-        }
-
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        serviceTypeSpinner.adapter = adapter
-
-        Log.d(TAG, "Service types loaded: ${serviceTypes.size}, Categories: ${categories.size}")
-
+        // список строится динамически в диалоге поиска
         if (isEditMode && selectedServiceTypeId != 0) {
             selectServiceTypeInSpinner(selectedServiceTypeId)
         }

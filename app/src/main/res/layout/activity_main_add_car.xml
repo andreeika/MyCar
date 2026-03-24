@@ -71,6 +71,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
         android:text="Моя машина"
         android:textColor="#228BE6"
         android:textSize="24sp"
@@ -110,6 +111,7 @@
                 android:layout_width="100dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
                 android:padding="3dp"
                 android:text="Марка:"
                 android:textAlignment="center"
@@ -118,82 +120,68 @@
                 app:layout_constraintBottom_toTopOf="@+id/textView6"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.3" />
+                app:layout_constraintVertical_bias="0.553" />
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/brandTextInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            <TextView
+                android:id="@+id/brandAutoComplete"
                 android:layout_width="180dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_edit_text"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:hint="Выберите марку..."
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textSize="14sp"
+                android:ellipsize="end"
+                android:maxLines="1"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toTopOf="@+id/modelTextInputLayout"
-                app:layout_constraintVertical_bias="0.2">
-
-                <AutoCompleteTextView
-                    android:id="@+id/brandAutoComplete"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:completionThreshold="1"
-                    android:gravity="start|center_vertical"
-                    android:inputType="textCapWords"
-                    android:maxLines="1"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:singleLine="true"
-                    android:textSize="14sp" />
-
-            </com.google.android.material.textfield.TextInputLayout>
+                app:layout_constraintBottom_toTopOf="@+id/modelAutoComplete"
+                app:layout_constraintVertical_bias="0.2" />
 
             <TextView
                 android:id="@+id/textView6"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
+                android:layout_marginBottom="28dp"
                 android:padding="3dp"
                 android:text="Модель:"
                 android:textAlignment="center"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toTopOf="@+id/textView7"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textView3"
-                app:layout_constraintVertical_bias="0.3" />
+                app:layout_constraintStart_toStartOf="parent" />
 
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/modelTextInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            <TextView
+                android:id="@+id/modelAutoComplete"
                 android:layout_width="180dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_edit_text"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:hint="Выберите модель..."
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:textSize="14sp"
+                android:ellipsize="end"
+                android:maxLines="1"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/brandTextInputLayout"
+                app:layout_constraintTop_toBottomOf="@+id/brandAutoComplete"
                 app:layout_constraintBottom_toTopOf="@+id/mileageTextInputLayout"
-                app:layout_constraintVertical_bias="0.3">
-
-                <AutoCompleteTextView
-                    android:id="@+id/modelAutoComplete"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:completionThreshold="1"
-                    android:enabled="false"
-                    android:gravity="start|center_vertical"
-                    android:inputType="textCapWords"
-                    android:maxLines="1"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:singleLine="true"
-                    android:textSize="14sp" />
-
-            </com.google.android.material.textfield.TextInputLayout>
+                app:layout_constraintVertical_bias="0.3" />
 
             <TextView
                 android:id="@+id/textView7"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="24dp"
                 android:padding="3dp"
                 android:text="Пробег:"
                 android:textAlignment="center"
@@ -209,7 +197,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="16dp"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/modelTextInputLayout"
+                app:layout_constraintTop_toBottomOf="@+id/modelAutoComplete"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintVertical_bias="0.1">
 
@@ -242,6 +230,7 @@
         android:id="@+id/imageView2"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="171dp"
         app:layout_constraintBottom_toTopOf="@+id/carCardView"

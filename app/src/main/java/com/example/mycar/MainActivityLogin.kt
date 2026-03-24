@@ -90,6 +90,12 @@ class MainActivityLogin : AppCompatActivity() {
     }
 
     private fun startMain() {
+        // Создать канал и запустить воркер если уведомления включены
+        MaintenanceCheckWorker.createNotificationChannel(this)
+        val prefs = getSharedPreferences("my_car_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("notifications_enabled", true)) {
+            MaintenanceCheckWorker.schedule(this)
+        }
         startActivity(Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         })

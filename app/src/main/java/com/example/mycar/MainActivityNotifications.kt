@@ -125,7 +125,9 @@ class MainActivityNotifications : AppCompatActivity() {
             if (info.isEmpty()) View.GONE else View.VISIBLE
 
         if (urgent.isEmpty() && recommendations.isEmpty() && info.isEmpty()) {
-            Toast.makeText(this, "Нет новых уведомлений", Toast.LENGTH_SHORT).show()
+            findViewById<View>(R.id.textViewEmpty).visibility = View.VISIBLE
+        } else {
+            findViewById<View>(R.id.textViewEmpty).visibility = View.GONE
         }
     }
 
@@ -175,12 +177,16 @@ class MainActivityNotifications : AppCompatActivity() {
     ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
         class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val card: com.google.android.material.card.MaterialCardView =
+                (view as android.widget.FrameLayout).getChildAt(0)
+                    as com.google.android.material.card.MaterialCardView
+            val divider: View = view.findViewById(R.id.divider)
+            val iconBackground: View = view.findViewById(R.id.iconBackground)
             val imageViewIcon: ImageView = view.findViewById(R.id.imageViewIcon)
             val textViewTitle: TextView = view.findViewById(R.id.textViewTitle)
             val textViewMessage: TextView = view.findViewById(R.id.textViewMessage)
             val textViewDate: TextView = view.findViewById(R.id.textViewDate)
             val textViewCarInfo: TextView = view.findViewById(R.id.textViewCarInfo)
-            val divider: View = view.findViewById(R.id.divider)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -193,33 +199,42 @@ class MainActivityNotifications : AppCompatActivity() {
             val notification = notifications[position]
             val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
 
-            when (notification.type) {
-                NotificationType.URGENT -> {
-                    holder.imageViewIcon.setImageResource(android.R.drawable.ic_dialog_alert)
-                    holder.imageViewIcon.setColorFilter(Color.RED)
-                }
-                NotificationType.MAINTENANCE_RECOMMENDATION -> {
-                    holder.imageViewIcon.setImageResource(android.R.drawable.ic_menu_edit)
-                    holder.imageViewIcon.setColorFilter(Color.parseColor("#FF9800"))
-                }
-                NotificationType.INFO -> {
-                    holder.imageViewIcon.setImageResource(android.R.drawable.ic_dialog_info)
-                    holder.imageViewIcon.setColorFilter(Color.parseColor("#2196F3"))
-                }
+            val (accentColor, iconRes, bgColor) = when (notification.type) {
+                NotificationType.URGENT -> Triple(
+                    Color.parseColor("#F44336"),
+                    android.R.drawable.ic_dialog_alert,
+                    Color.parseColor("#FFF5F5")
+                )
+                NotificationType.MAINTENANCE_RECOMMENDATION -> Triple(
+                    Color.parseColor("#FF9800"),
+                    android.R.drawable.ic_menu_edit,
+                    Color.parseColor("#FFF8F0")
+                )
+                NotificationType.INFO -> Triple(
+                    Color.parseColor("#228BE6"),
+                    android.R.drawable.ic_dialog_info,
+                    Color.parseColor("#F0F4FF")
+                )
             }
+
+            // Цветная полоса слева
+            holder.divider.setBackgroundColor(accentColor)
+
+            // Иконка и фон круга
+            holder.imageViewIcon.setImageResource(iconRes)
+            holder.imageViewIcon.setColorFilter(accentColor)
+            holder.iconBackground.setBackgroundColor(Color.argb(30,
+                Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor)))
 
             holder.textViewTitle.text = notification.title
             holder.textViewMessage.text = notification.message
             holder.textViewDate.text = dateFormat.format(notification.date)
-            holder.textViewCarInfo.text = notification.carName
-            holder.divider.visibility = if (position == notifications.size - 1) View.GONE else View.VISIBLE
+            holder.textViewCarInfo.text = "🚗 ${notification.carName}"
 
             val isRead = holder.itemView.context
                 .getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
                 .getBoolean("notification_${notification.id}", false)
-            holder.itemView.setBackgroundColor(
-                if (!isRead) Color.parseColor("#E3F2FD") else Color.TRANSPARENT
-            )
+            holder.card.setCardBackgroundColor(if (!isRead) bgColor else Color.WHITE)
 
             holder.itemView.setOnClickListener { onItemClick(notification) }
         }

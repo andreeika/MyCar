@@ -71,6 +71,16 @@ class MainActivityStatistics : AppCompatActivity() {
     private lateinit var scrollViewContent: android.widget.ScrollView
     private lateinit var swipeRefresh: androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
+    // Сравнение месяцев
+    private lateinit var textViewThisMonthConsumption: TextView
+    private lateinit var textViewLastMonthConsumption: TextView
+    private lateinit var textViewConsumptionDiff: TextView
+
+    // Стоимость владения за год
+    private lateinit var textViewYearlyFuel: TextView
+    private lateinit var textViewYearlyMaintenance: TextView
+    private lateinit var textViewYearlyTotal: TextView
+
     private val userCars = mutableListOf<Car>()
     private var selectedCarId: Int = -1
 
@@ -141,6 +151,13 @@ class MainActivityStatistics : AppCompatActivity() {
             scrollViewContent = findViewById(R.id.scrollViewContent)
             swipeRefresh = findViewById(R.id.swipeRefresh)
             swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
+
+            textViewThisMonthConsumption = findViewById(R.id.textViewThisMonthConsumption)
+            textViewLastMonthConsumption = findViewById(R.id.textViewLastMonthConsumption)
+            textViewConsumptionDiff = findViewById(R.id.textViewConsumptionDiff)
+            textViewYearlyFuel = findViewById(R.id.textViewYearlyFuel)
+            textViewYearlyMaintenance = findViewById(R.id.textViewYearlyMaintenance)
+            textViewYearlyTotal = findViewById(R.id.textViewYearlyTotal)
 
             setDefaultDates()
 
@@ -378,12 +395,16 @@ class MainActivityStatistics : AppCompatActivity() {
                 val statistics = loadStatisticsFromDatabase(carId, dateFrom, dateTo)
                 val monthlyStats = loadMonthlyStatistics(carId, dateFrom, dateTo)
                 val fuelConsumption = calculateFuelConsumption(carId, dateFrom, dateTo)
+                val monthComparison = loadMonthComparison(carId)
+                val yearlyCost = loadYearlyCost(carId)
 
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
                     swipeRefresh.isRefreshing = false
                     scrollViewContent.visibility = View.VISIBLE
                     updateUI(statistics, monthlyStats, fuelConsumption)
+                    updateMonthComparison(monthComparison)
+                    updateYearlyCost(yearlyCost)
                 }
             } catch (ex: Exception) {
                 Log.e("Statistics", "Error loading statistics: ${ex.message}", ex)
@@ -621,6 +642,78 @@ class MainActivityStatistics : AppCompatActivity() {
         }
     }
 
+
+    private suspend fun loadMonthComparison(carId: Int): Map<String, Double> {
+        return try {
+            val fmt = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+            val cal = Calendar.getInstance()
+
+            // Этот месяц: с 1-го по сегодня
+            val thisMonthTo = fmt.format(cal.time)
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            val thisMonthFrom = fmt.format(cal.time)
+
+            // Прошлый месяц: с 1-го по последний день
+            cal.add(Calendar.MONTH, -1)
+            val lastMonthFrom = fmt.format(cal.time)
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+            val lastMonthTo = fmt.format(cal.time)
+
+            val thisMonth = ApiClient.getFuelConsumption(carId, thisMonthFrom, thisMonthTo)
+            val lastMonth = ApiClient.getFuelConsumption(carId, lastMonthFrom, lastMonthTo)
+
+            mapOf(
+                "this_consumption" to thisMonth.optDouble("avg_consumption", 0.0),
+                "last_consumption" to lastMonth.optDouble("avg_consumption", 0.0)
+            )
+        } catch (_: Exception) { emptyMap() }
+    }
+
+    private suspend fun loadYearlyCost(carId: Int): Map<String, Double> {
+        return try {
+            val fmt = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+            val cal = Calendar.getInstance()
+            val dateTo = fmt.format(cal.time)
+            cal.add(Calendar.YEAR, -1)
+            val dateFrom = fmt.format(cal.time)
+
+            val stats = ApiClient.getStatistics(carId, dateFrom, dateTo)
+            mapOf(
+                "fuel" to stats.optDouble("fuel_expenses", 0.0),
+                "maintenance" to stats.optDouble("maintenance_expenses", 0.0),
+                "total" to stats.optDouble("total_expenses", 0.0)
+            )
+        } catch (_: Exception) { emptyMap() }
+    }
+
+    private fun updateMonthComparison(data: Map<String, Double>) {
+        val thisC = data["this_consumption"] ?: 0.0
+        val lastC = data["last_consumption"] ?: 0.0
+
+        textViewThisMonthConsumption.text = if (thisC > 0) "%.1f л/100".format(thisC) else "Нет данных"
+        textViewLastMonthConsumption.text = if (lastC > 0) "%.1f л/100".format(lastC) else "Нет данных"
+
+        if (thisC > 0 && lastC > 0) {
+            val diff = thisC - lastC
+            val sign = if (diff > 0) "+" else ""
+            textViewConsumptionDiff.text = "$sign%.1f л/100".format(diff)
+            textViewConsumptionDiff.setTextColor(
+                if (diff > 0) Color.parseColor("#FA5252") else Color.parseColor("#40C057")
+            )
+        } else {
+            textViewConsumptionDiff.text = "—"
+        }
+    }
+
+    private fun updateYearlyCost(data: Map<String, Double>) {
+        val fuel = data["fuel"] ?: 0.0
+        val maintenance = data["maintenance"] ?: 0.0
+        val total = data["total"] ?: 0.0
+
+        textViewYearlyFuel.text = if (fuel > 0) "%,d руб".format(fuel.toInt()) else "—"
+        textViewYearlyMaintenance.text = if (maintenance > 0) "%,d руб".format(maintenance.toInt()) else "—"
+        textViewYearlyTotal.text = if (total > 0) "%,d руб".format(total.toInt()) else "—"
+    }
 
     class StatsAdapter(private val stats: List<StatItem>) :
         RecyclerView.Adapter<StatsAdapter.ViewHolder>() {

@@ -9,6 +9,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.textfield.TextInputLayout
@@ -17,9 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.sql.PreparedStatement
-import java.sql.ResultSet
-import java.sql.Statement
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,6 +37,14 @@ class MainActivityRefueling : AppCompatActivity() {
     private lateinit var progressOverlay: android.widget.FrameLayout
 
     private lateinit var history: ImageView
+    private lateinit var imageViewScanQr: ImageView
+
+    private val qrLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val qrRaw = result.data?.getStringExtra(QrScannerActivity.RESULT_QR) ?: return@registerForActivityResult
+            handleQrResult(qrRaw)
+        }
+    }
 
     private val fuels = mutableListOf<Fuel>()
     private val stations = mutableListOf<GasStation>()
@@ -120,6 +126,7 @@ class MainActivityRefueling : AppCompatActivity() {
         imageViewCancel = findViewById(R.id.imageViewCancel)
         history = findViewById(R.id.imageView8)
         progressOverlay = findViewById(R.id.progressOverlay)
+        imageViewScanQr = findViewById(R.id.imageViewScanQr)
 
         stationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, mutableListOf())
         stationAutoComplete.setAdapter(stationAdapter)
@@ -338,6 +345,10 @@ class MainActivityRefueling : AppCompatActivity() {
             intent.putExtra("car_model", currentCarModel)
             startActivity(intent)
         }
+
+        imageViewScanQr.setOnClickListener {
+            qrLauncher.launch(Intent(this, QrScannerActivity::class.java))
+        }
     }
 
     private fun validateInput(): Boolean {
@@ -475,6 +486,60 @@ class MainActivityRefueling : AppCompatActivity() {
             val arr = ApiClient.getCars(userId)
             (0 until arr.length()).any { arr.getJSONObject(it).getInt("car_id") == carId }
         } catch (ex: Exception) { false }
+    }
+
+    private fun handleQrResult(qrRaw: String) {
+        progressOverlay.visibility = View.VISIBLE
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val result = ApiClient.parseReceipt(qrRaw)
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    result.optString("date").takeIf { it.isNotEmpty() }?.let { dateEditText.setText(it) }
+                    result.optDouble("volume").takeIf { !it.isNaN() && it > 0 }?.let { volumeEditText.setText(it.toString()) }
+                    result.optDouble("price_per_liter").takeIf { !it.isNaN() && it > 0 }?.let { priceEditText.setText(it.toString()) }
+
+                    // Station name
+                    val stationNameRaw = result.optString("station_name", "")
+                    if (stationNameRaw.isNotEmpty()) {
+                        val matchedStation = stations.find { it.name.equals(stationNameRaw, ignoreCase = true) }
+                        if (matchedStation != null) {
+                            selectedStationId = matchedStation.stationId
+                            isStationInDb = true
+                            manualStationName = ""
+                        } else {
+                            selectedStationId = 0
+                            isStationInDb = false
+                            manualStationName = stationNameRaw
+                        }
+                        stationAutoComplete.setText(stationNameRaw, false)
+                    }
+
+                    // Match fuel name from receipt to spinner
+                    val fuelNameRaw = result.optString("fuel_name", "").lowercase()
+                    if (fuelNameRaw.isNotEmpty()) {
+                        val matchIndex = fuels.indexOfFirst { fuel ->
+                            fuelNameRaw.contains(fuel.name.lowercase()) ||
+                            fuelNameRaw.contains(fuel.marking.lowercase()) ||
+                            fuel.name.lowercase().let { n -> fuelNameRaw.contains(n) }
+                        }
+                        if (matchIndex >= 0) {
+                            fuelSpinner.setSelection(matchIndex)
+                            selectedFuelId = fuels[matchIndex].fuelId
+                        }
+                    }
+
+                    updateTotalAmount()
+                    Toast.makeText(this@MainActivityRefueling, "Данные из чека подставлены", Toast.LENGTH_SHORT).show()
+                }
+            } catch (ex: Exception) {
+                Log.e(TAG, "QR parse error: ${ex.message}", ex)
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    Toast.makeText(this@MainActivityRefueling, "Не удалось распознать чек: ${friendlyError(ex)}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun loadFuelData() {
