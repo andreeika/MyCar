@@ -170,11 +170,15 @@ class MainActivitySettings : AppCompatActivity() {
     private fun setupSwitchListeners() {
         switchNotifications.setOnCheckedChangeListener { _, isChecked ->
             sharedPreferences.edit().putBoolean("notifications_enabled", isChecked).apply()
+            if (isChecked) {
+                MaintenanceCheckWorker.schedule(this)
+            } else {
+                MaintenanceCheckWorker.cancel(this)
+            }
             Toast.makeText(this,
                 if (isChecked) "Уведомления включены" else "Уведомления отключены",
                 Toast.LENGTH_SHORT).show()
         }
-
     }
 
     private fun validateProfile(): Boolean {
@@ -215,7 +219,13 @@ class MainActivitySettings : AppCompatActivity() {
             layoutUserEmail.error = "Некорректный email"
             isValid = false
         } else {
-            layoutUserEmail.error = null
+            val emailError = EmailValidator.validate(userEmail)
+            if (emailError != null) {
+                layoutUserEmail.error = emailError
+                isValid = false
+            } else {
+                layoutUserEmail.error = null
+            }
         }
 
         return isValid
@@ -259,17 +269,58 @@ class MainActivitySettings : AppCompatActivity() {
     }
 
     private fun updateProfile() {
+        val userId   = sessionManager.getUserId()
+        val fullName = editUserName.text.toString().trim()
+        val username = editUserLogin.text.toString().trim()
+        val newEmail = editUserEmail.text.toString().trim()
+        val currentEmail = sessionManager.getUserEmail() ?: ""
+
+        // Если email не изменился — сохраняем без кода
+        if (newEmail.equals(currentEmail, ignoreCase = true)) {
+            saveProfileDirectly(userId, fullName, username, newEmail)
+            return
+        }
+
+        // Email изменился — отправляем код на новый email
         btnSaveProfile.isEnabled = false
         progressOverlay.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val userId   = sessionManager.getUserId()
-                val fullName = editUserName.text.toString().trim()
-                val username = editUserLogin.text.toString().trim()
-                val email    = editUserEmail.text.toString().trim()
+                ApiClient.sendChangeCode(userId, "email", newEmail)
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSaveProfile.isEnabled = true
+                    showChangeCodeDialog(
+                        title = "Подтверждение нового email",
+                        message = "Код отправлен на $newEmail",
+                        onConfirm = { code ->
+                            verifyEmailChange(userId, fullName, username, newEmail, code)
+                        },
+                        onResend = {
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try { ApiClient.sendChangeCode(userId, "email", newEmail) } catch (_: Exception) {}
+                            }
+                        }
+                    )
+                }
+            } catch (ex: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSaveProfile.isEnabled = true
+                    val msg = if (ex is ApiException && ex.code == 409) ex.message ?: "Email уже используется"
+                              else friendlyError(ex)
+                    Toast.makeText(this@MainActivitySettings, msg, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
+    private fun saveProfileDirectly(userId: Int, fullName: String, username: String, email: String) {
+        btnSaveProfile.isEnabled = false
+        progressOverlay.visibility = View.VISIBLE
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
                 ApiClient.updateProfile(userId, fullName, username, email)
-
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
                     sessionManager.saveUserName(fullName)
@@ -279,33 +330,112 @@ class MainActivitySettings : AppCompatActivity() {
                     setResult(RESULT_OK)
                     finish()
                 }
-            } catch (e: ApiException) {
+            } catch (ex: Exception) {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
                     btnSaveProfile.isEnabled = true
-                    Toast.makeText(this@MainActivitySettings, e.message ?: "Ошибка", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivitySettings, friendlyError(ex), Toast.LENGTH_SHORT).show()
                 }
-            } catch (e: Exception) {
+            }
+        }
+    }
+
+    private fun verifyEmailChange(userId: Int, fullName: String, username: String, newEmail: String, code: String) {
+        progressOverlay.visibility = View.VISIBLE
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                ApiClient.verifyChange(userId, "email", code, newEmail = newEmail)
+                // После подтверждения email — сохраняем остальной профиль
+                ApiClient.updateProfile(userId, fullName, username, newEmail)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
-                    btnSaveProfile.isEnabled = true
-                    Toast.makeText(this@MainActivitySettings, "Нет связи с сервером", Toast.LENGTH_SHORT).show()
+                    sessionManager.saveUserName(fullName)
+                    sessionManager.saveUserUsername(username)
+                    sessionManager.saveUserEmail(newEmail)
+                    Toast.makeText(this@MainActivitySettings, "Профиль обновлён", Toast.LENGTH_SHORT).show()
+                    setResult(RESULT_OK)
+                    finish()
+                }
+            } catch (ex: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    val msg = if (ex is ApiException && ex.code == 400) ex.message ?: "Неверный код"
+                              else friendlyError(ex)
+                    Toast.makeText(this@MainActivitySettings, msg, Toast.LENGTH_LONG).show()
+                    if (ex is ApiException && ex.code == 400) {
+                        showChangeCodeDialog(
+                            title = "Подтверждение нового email",
+                            message = "Код отправлен на $newEmail",
+                            onConfirm = { c -> verifyEmailChange(userId, fullName, username, newEmail, c) },
+                            onResend = {
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try { ApiClient.sendChangeCode(userId, "email", newEmail) } catch (_: Exception) {}
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 
     private fun updatePassword() {
+        val userId          = sessionManager.getUserId()
+        val currentPassword = editCurrentPassword.text.toString().trim()
+        val newPassword     = editNewPassword.text.toString().trim()
+        val currentEmail    = sessionManager.getUserEmail() ?: ""
+
         btnSavePassword.isEnabled = false
         progressOverlay.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val userId          = sessionManager.getUserId()
-                val currentPassword = editCurrentPassword.text.toString().trim()
-                val newPassword     = editNewPassword.text.toString().trim()
+                // Сначала проверяем текущий пароль через обычный эндпоинт (чтобы не слать код при неверном пароле)
+                ApiClient.updatePassword(userId, currentPassword, currentPassword) // dry-run: меняем на тот же
+            } catch (ex: ApiException) {
+                if (ex.code == 401) {
+                    withContext(Dispatchers.Main) {
+                        progressOverlay.visibility = View.GONE
+                        btnSavePassword.isEnabled = true
+                        layoutCurrentPassword.error = "Неверный текущий пароль"
+                    }
+                    return@launch
+                }
+                // Иначе продолжаем (другие ошибки игнорируем на dry-run)
+            } catch (_: Exception) {}
 
-                ApiClient.updatePassword(userId, currentPassword, newPassword)
+            try {
+                ApiClient.sendChangeCode(userId, "password")
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSavePassword.isEnabled = true
+                    showChangeCodeDialog(
+                        title = "Подтверждение смены пароля",
+                        message = "Код отправлен на $currentEmail",
+                        onConfirm = { code ->
+                            verifyPasswordChange(userId, currentPassword, newPassword, code)
+                        },
+                        onResend = {
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                try { ApiClient.sendChangeCode(userId, "password") } catch (_: Exception) {}
+                            }
+                        }
+                    )
+                }
+            } catch (ex: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    btnSavePassword.isEnabled = true
+                    Toast.makeText(this@MainActivitySettings, friendlyError(ex), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
+    private fun verifyPasswordChange(userId: Int, currentPassword: String, newPassword: String, code: String) {
+        progressOverlay.visibility = View.VISIBLE
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                ApiClient.verifyChange(userId, "password", code, currentPassword, newPassword)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
                     Toast.makeText(this@MainActivitySettings, "Пароль изменён", Toast.LENGTH_SHORT).show()
@@ -314,21 +444,71 @@ class MainActivitySettings : AppCompatActivity() {
                     editConfirmPassword.text?.clear()
                     btnSavePassword.isEnabled = true
                 }
-            } catch (e: ApiException) {
+            } catch (ex: Exception) {
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = View.GONE
-                    btnSavePassword.isEnabled = true
-                    if (e.code == 401) layoutCurrentPassword.error = "Неверный текущий пароль"
-                    else Toast.makeText(this@MainActivitySettings, e.message ?: "Ошибка", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    progressOverlay.visibility = View.GONE
-                    btnSavePassword.isEnabled = true
-                    Toast.makeText(this@MainActivitySettings, "Нет связи с сервером", Toast.LENGTH_SHORT).show()
+                    val msg = if (ex is ApiException && ex.code == 400) ex.message ?: "Неверный код"
+                              else friendlyError(ex)
+                    Toast.makeText(this@MainActivitySettings, msg, Toast.LENGTH_LONG).show()
+                    if (ex is ApiException && ex.code == 400) {
+                        val email = sessionManager.getUserEmail() ?: ""
+                        showChangeCodeDialog(
+                            title = "Подтверждение смены пароля",
+                            message = "Код отправлен на $email",
+                            onConfirm = { c -> verifyPasswordChange(userId, currentPassword, newPassword, c) },
+                            onResend = {
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    try { ApiClient.sendChangeCode(userId, "password") } catch (_: Exception) {}
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
+    }
+
+    private fun showChangeCodeDialog(
+        title: String,
+        message: String,
+        onConfirm: (code: String) -> Unit,
+        onResend: () -> Unit
+    ) {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 16, 48, 8)
+        }
+        val info = android.widget.TextView(this).apply {
+            text = message
+            textSize = 14f
+            setPadding(0, 0, 0, 16)
+        }
+        val codeEdit = android.widget.EditText(this).apply {
+            hint = "Введите 6-значный код"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            textSize = 20f
+            gravity = android.view.Gravity.CENTER
+            letterSpacing = 0.3f
+        }
+        layout.addView(info)
+        layout.addView(codeEdit)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(layout)
+            .setPositiveButton("Подтвердить", null)
+            .setNegativeButton("Отмена", null)
+            .setNeutralButton("Отправить снова") { _, _ -> onResend() }
+            .create()
+
+        dialog.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val code = codeEdit.text.toString().trim()
+            if (code.length != 6) { codeEdit.error = "Введите 6 цифр"; return@setOnClickListener }
+            dialog.dismiss()
+            onConfirm(code)
+        }
+        codeEdit.requestFocus()
     }
 
     private fun showClearCacheDialog() {

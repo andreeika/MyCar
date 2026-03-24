@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <SearchView
+        android:id="@+id/searchView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="0dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
+        android:iconifiedByDefault="false"
+        android:queryHint="Поиск типа обслуживания..." />
+
+    <ListView
+        android:id="@+id/listViewServiceTypes"
+        android:layout_width="match_parent"
+        android:layout_height="350dp"
+        android:divider="#E0E0E0"
+        android:dividerHeight="1dp" />
+
+</LinearLayout>

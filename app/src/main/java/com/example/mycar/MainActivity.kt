@@ -289,6 +289,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleNavigationItem(itemId: Int): Boolean {
         when (itemId) {
+            R.id.nav_calculator -> {
+                drawerLayout.close()
+                val intent = Intent(this, MainActivityFuelCalculator::class.java)
+                if (selectedCarId != -1) intent.putExtra("car_id", selectedCarId)
+                startActivity(intent)
+                return true
+            }
             R.id.nav_help -> {
                 startActivity(Intent(this, MainActivityHelp::class.java))
                 drawerLayout.close()

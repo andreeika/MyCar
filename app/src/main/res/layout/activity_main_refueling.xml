@@ -22,7 +22,8 @@
         android:id="@+id/textView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Новая заправка"
+        android:layout_marginTop="8dp"
+        android:text="Заправка"
         android:textColor="#228BE6"
         android:textSize="24sp"
         android:textStyle="bold"
@@ -36,7 +37,7 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/refuelingCardView"
         android:layout_width="0dp"
-        android:layout_height="470dp"
+        android:layout_height="480dp"
         android:layout_marginStart="16dp"
         android:layout_marginTop="32dp"
         android:layout_marginEnd="16dp"
@@ -255,11 +256,22 @@
                 android:id="@+id/fullTankCheckBox"
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="16dp"
                 android:text="Полный бак"
                 android:textSize="16sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/totalAmountTextView" />
+
+            <ImageView
+                android:id="@+id/imageViewScanQr"
+                android:layout_width="120dp"
+                android:layout_height="50dp"
+                android:layout_marginTop="16dp"
+                android:contentDescription="Сканировать QR"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/textViewTotalLabel"
+                app:srcCompat="@drawable/scan" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -285,6 +297,7 @@
         android:id="@+id/imageViewCancel"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="8dp"
         android:contentDescription="Отмена"
         android:tint="#228BE6"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -295,11 +308,14 @@
         app:layout_constraintVertical_bias="0.01999998"
         app:srcCompat="@drawable/cancel" />
 
+    <!-- Кнопка сканирования QR -->
+
     <!-- История -->
     <ImageView
         android:id="@+id/imageView8"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.043"

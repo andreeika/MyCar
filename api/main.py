@@ -1,5 +1,11 @@
 import hashlib
 import base64
+import random
+import smtplib
+import os
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -10,9 +16,43 @@ from models import (
     CarCreate, CarUpdate,
     RefuelingCreate, RefuelingUpdate,
     MaintenanceCreate, MaintenanceUpdate,
+    ServiceTypeCreate,
+    SendCodeRequest, VerifyAndRegisterRequest,
+    SendChangeCodeRequest, VerifyChangeRequest,
 )
 
 app = FastAPI(title="MyCar API")
+
+# ─── email verification storage ─────────────────────────────────────────────
+# { email: {"code": "123456", "expires": datetime} }
+_pending_registrations: dict = {}
+# { user_id: {"code": str, "expires": datetime, "type": "email"|"password", "new_email": str|None} }
+_pending_changes: dict = {}
+
+def _send_verification_email(to_email: str, code: str, subject: str = "Код подтверждения MyCar", action: str = "регистрации"):
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_pass = os.getenv("SMTP_PASSWORD", "")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = smtp_user
+    msg["To"] = to_email
+
+    body = f"""
+    <html><body>
+    <p>Ваш код подтверждения для {action} в приложении <b>MyCar</b>:</p>
+    <h2 style="color:#228BE6;letter-spacing:8px">{code}</h2>
+    <p>Код действителен 10 минут.</p>
+    </body></html>
+    """
+    msg.attach(MIMEText(body, "html"))
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.sendmail(smtp_user, to_email, msg.as_string())
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────
@@ -41,6 +81,66 @@ def parse_date(date_str: str) -> str:
 
 
 # ─── auth ────────────────────────────────────────────────────────────────────
+
+@app.post("/auth/send-code")
+def send_verification_code(body: SendCodeRequest):
+    """Отправляет 6-значный код на email для подтверждения регистрации."""
+    # Проверяем, не занят ли email
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM users WHERE email = ?", body.email)
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Email уже используется")
+
+    code = str(random.randint(100000, 999999))
+    _pending_registrations[body.email] = {
+        "code": code,
+        "expires": datetime.utcnow() + timedelta(minutes=10),
+    }
+
+    try:
+        _send_verification_email(body.email, code)
+    except Exception as e:
+        del _pending_registrations[body.email]
+        raise HTTPException(status_code=500, detail=f"Ошибка отправки письма: {str(e)}")
+
+    return {"ok": True}
+
+
+@app.post("/auth/verify-register", response_model=UserResponse)
+def verify_and_register(body: VerifyAndRegisterRequest):
+    """Проверяет код и регистрирует пользователя."""
+    entry = _pending_registrations.get(body.email)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Сначала запросите код подтверждения")
+    if datetime.utcnow() > entry["expires"]:
+        del _pending_registrations[body.email]
+        raise HTTPException(status_code=400, detail="Код истёк. Запросите новый")
+    if entry["code"] != body.code.strip():
+        raise HTTPException(status_code=400, detail="Неверный код")
+
+    del _pending_registrations[body.email]
+
+    # Регистрируем пользователя
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM users WHERE username = ?", body.username)
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Логин уже занят")
+        cur.execute("SELECT 1 FROM users WHERE email = ?", body.email)
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Email уже используется")
+
+        hashed = hash_password(body.password)
+        cur.execute(
+            "INSERT INTO users (full_name, email, username, password) VALUES (?, ?, ?, ?)",
+            body.full_name, body.email, body.username, hashed,
+        )
+        new_id = cur.execute("SELECT MAX(user_id) FROM users WHERE username = ?", body.username).fetchone()[0]
+        conn.commit()
+
+    return UserResponse(user_id=new_id, full_name=body.full_name,
+                        username=body.username, email=body.email)
 
 @app.post("/auth/login", response_model=UserResponse)
 def login(body: LoginRequest):
@@ -599,7 +699,127 @@ def get_service_types():
     return [row_to_dict(cur, r) for r in rows]
 
 
+@app.post("/service-types", status_code=201)
+def add_service_type(body: ServiceTypeCreate):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM ServiceCategory WHERE category_id = ?", body.category_id)
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Категория не найдена")
+        cur.execute(
+            "SELECT service_type_id FROM ServiceTypes WHERE LOWER(name) = LOWER(?) AND category_id = ?",
+            body.name, body.category_id,
+        )
+        existing = cur.fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Такой тип обслуживания уже существует")
+        cur.execute(
+            "INSERT INTO ServiceTypes (name, interval_km, category_id) VALUES (?, ?, ?)",
+            body.name, body.interval_km, body.category_id,
+        )
+        new_id = cur.execute(
+            "SELECT MAX(service_type_id) FROM ServiceTypes WHERE name = ? AND category_id = ?",
+            body.name, body.category_id,
+        ).fetchone()[0]
+        conn.commit()
+    return {"service_type_id": new_id, "name": body.name, "interval_km": body.interval_km, "category_id": body.category_id}
+
+
+@app.get("/service-categories")
+def get_service_categories():
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT category_id, name FROM ServiceCategory ORDER BY category_id")
+        rows = cur.fetchall()
+    return [row_to_dict(cur, r) for r in rows]
+
+
 # ─── user profile ────────────────────────────────────────────────────────────
+
+@app.post("/users/{user_id}/send-change-code")
+def send_change_code(user_id: int, body: SendChangeCodeRequest):
+    """Отправляет код подтверждения для смены email или пароля."""
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT email FROM users WHERE user_id = ?", user_id)
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        current_email = row[0]
+
+    if body.change_type == "email":
+        if not body.new_email:
+            raise HTTPException(status_code=400, detail="Укажите новый email")
+        # Проверяем что новый email не занят
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users WHERE email = ? AND user_id != ?", body.new_email, user_id)
+            if cur.fetchone():
+                raise HTTPException(status_code=409, detail="Email уже используется")
+        to_email = body.new_email
+        action = "смены email"
+        subject = "Подтверждение смены email — MyCar"
+    else:
+        to_email = current_email
+        action = "смены пароля"
+        subject = "Подтверждение смены пароля — MyCar"
+
+    code = str(random.randint(100000, 999999))
+    _pending_changes[user_id] = {
+        "code": code,
+        "expires": datetime.utcnow() + timedelta(minutes=10),
+        "type": body.change_type,
+        "new_email": body.new_email,
+    }
+
+    try:
+        _send_verification_email(to_email, code, subject=subject, action=action)
+    except Exception as e:
+        del _pending_changes[user_id]
+        raise HTTPException(status_code=500, detail=f"Ошибка отправки письма: {str(e)}")
+
+    return {"ok": True, "sent_to": to_email}
+
+
+@app.post("/users/{user_id}/verify-change")
+def verify_change(user_id: int, body: VerifyChangeRequest):
+    """Проверяет код и применяет изменение (email или пароль)."""
+    entry = _pending_changes.get(user_id)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Сначала запросите код подтверждения")
+    if datetime.utcnow() > entry["expires"]:
+        del _pending_changes[user_id]
+        raise HTTPException(status_code=400, detail="Код истёк. Запросите новый")
+    if entry["code"] != body.code.strip():
+        raise HTTPException(status_code=400, detail="Неверный код")
+    if entry["type"] != body.change_type:
+        raise HTTPException(status_code=400, detail="Тип изменения не совпадает")
+
+    del _pending_changes[user_id]
+
+    with get_connection() as conn:
+        cur = conn.cursor()
+        if body.change_type == "email":
+            new_email = entry.get("new_email") or body.new_email
+            if not new_email:
+                raise HTTPException(status_code=400, detail="Новый email не указан")
+            cur.execute("UPDATE users SET email = ? WHERE user_id = ?", new_email, user_id)
+            conn.commit()
+            return {"ok": True, "new_email": new_email}
+        else:
+            # смена пароля
+            if not body.current_password or not body.new_password:
+                raise HTTPException(status_code=400, detail="Укажите текущий и новый пароль")
+            cur.execute("SELECT password FROM users WHERE user_id = ?", user_id)
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Пользователь не найден")
+            if not verify_password(body.current_password, row[0]):
+                raise HTTPException(status_code=401, detail="Неверный текущий пароль")
+            cur.execute("UPDATE users SET password = ? WHERE user_id = ?",
+                        hash_password(body.new_password), user_id)
+            conn.commit()
+            return {"ok": True}
 
 class ProfileUpdate(BaseModel):
     full_name: str
@@ -658,3 +878,108 @@ def delete_user(user_id: int):
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         conn.commit()
     return {"ok": True}
+
+# ─── Receipt QR parsing via proverkacheka.com ────────────────────────────────
+import requests as _requests
+
+class ReceiptQrRequest(BaseModel):
+    qr_raw: str  # raw QR string from fiscal receipt
+
+@app.post("/receipt/parse")
+def parse_receipt(body: ReceiptQrRequest):
+    """
+    Parses a Russian fiscal receipt QR code via proverkacheka.com.
+    Returns: date, volume, price_per_liter, total_sum, fuel_name
+    """
+    api_token = os.getenv("PROVERKACHEKA_TOKEN", "")
+    if not api_token:
+        raise HTTPException(status_code=503, detail="Сервис проверки чеков не настроен")
+
+    try:
+        resp = _requests.post(
+            "https://proverkacheka.com/api/v1/check/get",
+            json={"token": api_token, "qrraw": body.qr_raw},
+            timeout=15,
+        )
+        data = resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка запроса к proverkacheka: {e}")
+
+    if data.get("code") != 1:
+        raise HTTPException(status_code=400, detail=data.get("first", "Чек не найден"))
+
+    ticket = data.get("data", {}).get("json", {})
+    items = ticket.get("items", [])
+
+    # Find fuel item — look for keywords
+    FUEL_KEYWORDS = ["бензин", "дизель", "газ", "аи-", "аи ", "92", "95", "98", "100", "евро", "топливо", "лпг"]
+    fuel_item = None
+    for item in items:
+        name_lower = item.get("name", "").lower()
+        if any(kw in name_lower for kw in FUEL_KEYWORDS):
+            fuel_item = item
+            break
+
+    # Fallback: largest quantity item (likely fuel)
+    if fuel_item is None and items:
+        fuel_item = max(items, key=lambda x: x.get("quantity", 0))
+
+    volume = None
+    price_per_liter = None
+    fuel_name = None
+    total_sum = None
+
+    if fuel_item:
+        # quantity in receipt is in units (liters for fuel)
+        qty = fuel_item.get("quantity", 0)
+        volume = round(qty / 1000, 2) if qty > 100 else round(float(qty), 2)
+        # price is in kopecks
+        price_kopecks = fuel_item.get("price", 0)
+        price_per_liter = round(price_kopecks / 100, 2)
+        fuel_name = fuel_item.get("name", "")
+        sum_kopecks = fuel_item.get("sum", 0)
+        total_sum = round(sum_kopecks / 100, 2)
+
+    # Receipt date
+    date_raw = ticket.get("dateTime", "")
+    receipt_date = None
+    if date_raw:
+        try:
+            dt = datetime.fromisoformat(date_raw.replace("T", " ").split("+")[0])
+            receipt_date = dt.strftime("%d.%m.%Y")
+        except Exception:
+            receipt_date = date_raw[:10]
+
+    # Station name — pick the most human-readable field, skip URLs
+    def _is_url(s: str) -> bool:
+        return bool(s) and (s.startswith("http") or s.startswith("www.") or "." in s.split("/")[0])
+
+    candidates = [
+        ticket.get("user", ""),
+        ticket.get("retailPlace", ""),
+        ticket.get("retailPlaceAddress", ""),
+    ]
+    raw_station = next((c for c in candidates if c and not _is_url(c)), "")
+
+    # Extract well-known brand from verbose legal name
+    STATION_BRANDS = [
+        "Газпромнефть", "Лукойл", "Роснефть", "Башнефть", "Татнефть",
+        "Сургутнефтегаз", "Нефтьмагистраль", "ТНК", "BP", "Shell",
+        "Шелл", "Евроойл", "Нефтяная", "Опти", "Трасса", "Ника",
+        "Нафта", "Петрол", "Энергия", "Синтез", "Ресурс", "НК Нефть", "Опти"
+    ]
+    station_name = raw_station
+    raw_lower = raw_station.lower()
+    for brand in STATION_BRANDS:
+        if brand.lower() in raw_lower:
+            station_name = brand
+            break
+
+    return {
+        "date": receipt_date,
+        "volume": volume,
+        "price_per_liter": price_per_liter,
+        "total_sum": total_sum,
+        "fuel_name": fuel_name,
+        "station_name": station_name,
+    }

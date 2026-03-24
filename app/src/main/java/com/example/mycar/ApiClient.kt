@@ -85,6 +85,22 @@ object ApiClient {
         })
     }
 
+    fun sendVerificationCode(email: String): JSONObject {
+        return post("/auth/send-code", JSONObject().apply {
+            put("email", email)
+        })
+    }
+
+    fun verifyAndRegister(fullName: String, email: String, username: String, password: String, code: String): JSONObject {
+        return post("/auth/verify-register", JSONObject().apply {
+            put("full_name", fullName)
+            put("email", email)
+            put("username", username)
+            put("password", password)
+            put("code", code)
+        })
+    }
+
 
     fun getCars(userId: Int): JSONArray = getArray("/users/$userId/cars")
 
@@ -262,6 +278,16 @@ object ApiClient {
 
     fun getServiceTypes(): JSONArray = getArray("/service-types")
 
+    fun getServiceCategories(): JSONArray = getArray("/service-categories")
+
+    fun addServiceType(name: String, intervalKm: Int, categoryId: Int): JSONObject {
+        return post("/service-types", JSONObject().apply {
+            put("name", name)
+            put("interval_km", intervalKm)
+            put("category_id", categoryId)
+        })
+    }
+
 
     fun updateProfile(userId: Int, fullName: String, username: String, email: String): JSONObject {
         return put("/users/$userId/profile", JSONObject().apply {
@@ -278,7 +304,32 @@ object ApiClient {
         })
     }
 
+    fun sendChangeCode(userId: Int, changeType: String, newEmail: String? = null): JSONObject {
+        return post("/users/$userId/send-change-code", JSONObject().apply {
+            put("user_id", userId)
+            put("change_type", changeType)
+            if (newEmail != null) put("new_email", newEmail) else put("new_email", JSONObject.NULL)
+        })
+    }
+
+    fun verifyChange(userId: Int, changeType: String, code: String,
+                     currentPassword: String? = null, newPassword: String? = null,
+                     newEmail: String? = null): JSONObject {
+        return post("/users/$userId/verify-change", JSONObject().apply {
+            put("user_id", userId)
+            put("change_type", changeType)
+            put("code", code)
+            if (currentPassword != null) put("current_password", currentPassword)
+            if (newPassword != null) put("new_password", newPassword)
+            if (newEmail != null) put("new_email", newEmail)
+        })
+    }
+
     fun deleteAccount(userId: Int): JSONObject = delete("/users/$userId")
+
+    fun parseReceipt(qrRaw: String): JSONObject {
+        return post("/receipt/parse", JSONObject().apply { put("qr_raw", qrRaw) })
+    }
 }
 
 class ApiException(val code: Int, message: String) : Exception(message)
