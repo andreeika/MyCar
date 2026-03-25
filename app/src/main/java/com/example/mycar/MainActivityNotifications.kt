@@ -23,7 +23,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivityNotifications : AppCompatActivity() {
+class MainActivityNotifications : BaseActivity() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var closeImageView: ImageView

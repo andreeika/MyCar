@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivityMaintenance : AppCompatActivity() {
+class MainActivityMaintenance : BaseActivity() {
 
     private lateinit var serviceTypeView: TextView
     private lateinit var dateEditText: TextView

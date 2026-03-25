@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivityRefueling : AppCompatActivity() {
+class MainActivityRefueling : BaseActivity() {
 
     private lateinit var fuelSpinner: Spinner
     private lateinit var stationAutoComplete: AutoCompleteTextView

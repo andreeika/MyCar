@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivityRegister : AppCompatActivity() {
+class MainActivityRegister : BaseActivity() {
 
     private lateinit var editFullName: EditText
     private lateinit var editEmail: EditText

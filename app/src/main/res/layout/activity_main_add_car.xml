@@ -120,26 +120,27 @@
                 app:layout_constraintBottom_toTopOf="@+id/textView6"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.553" />
+                app:layout_constraintVertical_bias="0.51" />
 
             <TextView
                 android:id="@+id/brandAutoComplete"
                 android:layout_width="180dp"
                 android:layout_height="48dp"
                 android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
                 android:background="@drawable/bg_edit_text"
                 android:clickable="true"
+                android:ellipsize="end"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:hint="Выберите марку..."
+                android:maxLines="1"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:textSize="14sp"
-                android:ellipsize="end"
-                android:maxLines="1"
+                app:layout_constraintBottom_toTopOf="@+id/modelAutoComplete"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintBottom_toTopOf="@+id/modelAutoComplete"
                 app:layout_constraintVertical_bias="0.2" />
 
             <TextView
@@ -147,7 +148,7 @@
                 android:layout_width="100dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
-                android:layout_marginBottom="28dp"
+                android:layout_marginBottom="32dp"
                 android:padding="3dp"
                 android:text="Модель:"
                 android:textAlignment="center"
@@ -161,27 +162,27 @@
                 android:layout_width="180dp"
                 android:layout_height="48dp"
                 android:layout_marginEnd="16dp"
+                android:layout_marginBottom="8dp"
                 android:background="@drawable/bg_edit_text"
                 android:clickable="true"
+                android:ellipsize="end"
                 android:focusable="true"
                 android:gravity="center_vertical"
                 android:hint="Выберите модель..."
+                android:maxLines="1"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"
                 android:textSize="14sp"
-                android:ellipsize="end"
-                android:maxLines="1"
+                app:layout_constraintBottom_toTopOf="@+id/textInputEditText2"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/brandAutoComplete"
-                app:layout_constraintBottom_toTopOf="@+id/mileageTextInputLayout"
-                app:layout_constraintVertical_bias="0.3" />
+                app:layout_constraintTop_toBottomOf="@+id/brandAutoComplete" />
 
             <TextView
                 android:id="@+id/textView7"
                 android:layout_width="100dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="8dp"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="20dp"
                 android:padding="3dp"
                 android:text="Пробег:"
                 android:textAlignment="center"
@@ -196,6 +197,7 @@
                 android:layout_width="180dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="16dp"
+                android:visibility="gone"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/modelAutoComplete"
                 app:layout_constraintBottom_toBottomOf="parent"
@@ -213,6 +215,23 @@
                     android:textSize="14sp" />
 
             </com.google.android.material.textfield.TextInputLayout>
+
+            <EditText
+                android:id="@+id/textInputEditText2"
+                android:layout_width="180dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="16dp"
+                android:background="@drawable/bg_edit_text"
+                android:hint="Введите пробег"
+                android:inputType="number"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:singleLine="true"
+                android:textSize="14sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/modelAutoComplete"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintVertical_bias="0.1" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>

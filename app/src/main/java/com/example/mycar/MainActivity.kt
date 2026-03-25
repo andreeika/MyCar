@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Base64
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : BaseActivity() {
 
     private val sessionManager by lazy { SessionManager(this) }
     private lateinit var sharedPreferences: SharedPreferences
@@ -222,6 +222,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             carView.setOnClickListener { selectCarFromMenu(car) }
+            carView.applyPressAnimation(scale = 0.96f)
 
             carView.tag = "car_item"
             carsContainer.addView(carView)
