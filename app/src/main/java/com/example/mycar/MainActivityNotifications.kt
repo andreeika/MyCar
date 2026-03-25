@@ -60,7 +60,6 @@ class MainActivityNotifications : BaseActivity() {
         notificationManager = NotificationManager()
         initializeViews()
         setupClickListeners()
-        setupStatusBarColors()
         loadNotifications()
     }
 
@@ -77,13 +76,6 @@ class MainActivityNotifications : BaseActivity() {
         recyclerViewUrgent.layoutManager = LinearLayoutManager(this)
         recyclerViewRecommendations.layoutManager = LinearLayoutManager(this)
         recyclerViewInfo.layoutManager = LinearLayoutManager(this)
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
     }
 
     private fun setupClickListeners() {

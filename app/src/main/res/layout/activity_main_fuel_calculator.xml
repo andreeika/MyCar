@@ -18,11 +18,13 @@
                 android:id="@+id/textViewTitle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
                 android:text="Калькулятор расхода"
                 android:textColor="#228BE6"
                 android:textSize="22sp"
                 android:textStyle="bold"
                 app:layout_constraintEnd_toStartOf="@+id/imageViewClose"
+                app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -40,7 +42,7 @@
                 android:id="@+id/inputCard"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="32dp"
                 app:cardBackgroundColor="@android:color/white"
                 app:cardCornerRadius="10dp"
                 app:cardElevation="4dp"
@@ -140,7 +142,7 @@
                         android:id="@+id/buttonCalculate"
                         android:layout_width="match_parent"
                         android:layout_height="48dp"
-                        android:layout_marginTop="20dp"
+                        android:layout_marginTop="16dp"
                         android:backgroundTint="#228BE6"
                         android:text="Рассчитать"
                         android:textSize="16sp" />

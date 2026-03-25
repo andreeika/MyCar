@@ -74,7 +74,6 @@ class MainActivitySettings : BaseActivity() {
         loadCurrentData()
         setupClickListeners()
         setupSwitchListeners()
-        setupStatusBarColors()
     }
 
     private fun initViews() {
@@ -115,13 +114,6 @@ class MainActivitySettings : BaseActivity() {
 
         toolbar.setNavigationOnClickListener {
             onBackPressed()
-        }
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_home_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
     }
     private fun loadCurrentData() {

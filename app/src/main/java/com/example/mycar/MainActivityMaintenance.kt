@@ -58,7 +58,6 @@ class MainActivityMaintenance : BaseActivity() {
         setupClickListeners()
         loadServiceTypesWithCategories()
         setCurrentDate()
-        setupStatusBarColors()
 
         currentCarId = intent.getIntExtra("car_id", 0)
         currentMaintenanceId = if (intent.hasExtra("maintenance_id")) {
@@ -96,13 +95,6 @@ class MainActivityMaintenance : BaseActivity() {
         progressOverlay = findViewById(R.id.progressOverlay)
         addServiceTypeButton = findViewById(R.id.addServiceTypeButton)
 
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
     }
 
     private fun setCurrentDate() {

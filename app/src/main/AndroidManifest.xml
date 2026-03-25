@@ -55,10 +55,12 @@
             android:exported="false" />
         <activity
             android:name=".MainActivityRegister"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".MainActivityRefueling"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".QrScannerActivity"
             android:exported="false"
@@ -75,7 +77,8 @@
             android:screenOrientation="portrait" />
         <activity
             android:name=".MainActivityLogin"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

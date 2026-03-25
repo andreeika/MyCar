@@ -35,10 +35,6 @@ class MainActivityLogin : BaseActivity() {
         btnRegister = findViewById(R.id.textView12)
         progressOverlay = findViewById(R.id.progressOverlay)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
 
         btnLogin.setOnClickListener {
             val username = etUsername.text.toString().trim()

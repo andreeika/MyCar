@@ -45,7 +45,6 @@ class MainActivityHistoryRef : BaseActivity() {
         }
 
         initViews()
-        setupToolbar()
         loadRefuelings()
     }
 
@@ -106,13 +105,7 @@ class MainActivityHistoryRef : BaseActivity() {
         }
     }
 
-    private fun setupToolbar() {
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-    }
 
     private fun loadRefuelings() {
         progressOverlay.visibility = View.VISIBLE
