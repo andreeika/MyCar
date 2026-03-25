@@ -47,7 +47,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-class MainActivityStatistics : AppCompatActivity() {
+class MainActivityStatistics : BaseActivity() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var carSpinner: Spinner
@@ -583,6 +583,8 @@ class MainActivityStatistics : AppCompatActivity() {
 
             lineChart.xAxis.valueFormatter = IndexAxisValueFormatter(months)
             lineChart.data = data
+            lineChart.setVisibleXRangeMaximum(minOf(4f, entries.size.toFloat()))
+            lineChart.moveViewToX(entries.size.toFloat())
             lineChart.animateX(1000, Easing.EaseInOutQuad)
             lineChart.invalidate()
 
@@ -622,18 +624,33 @@ class MainActivityStatistics : AppCompatActivity() {
             val maintenanceSet = BarDataSet(maintenanceEntries, "Обслуживание")
             maintenanceSet.color = Color.parseColor("#40C057")
 
+            // barWidth=0.35, barSpace=0.05, groupSpace=0.2 → группа = 0.35*2 + 0.05*2 + 0.2 = 1.0
+            val barWidth = 0.35f
+            val barSpace = 0.05f
+            val groupSpace = 0.2f
+
             val data = BarData(fuelSet, maintenanceSet)
-            data.barWidth = 0.4f
-            data.setValueTextSize(10f)
+            data.barWidth = barWidth
+            data.setValueTextSize(9f)
             data.setValueFormatter(object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return if (value > 0) "%,d".format(value.toInt()) else ""
                 }
             })
 
-            barChart.xAxis.valueFormatter = IndexAxisValueFormatter(months)
+            val groupCount = fuelEntries.size.toFloat()
             barChart.data = data
-            barChart.groupBars(0f, 0.4f, 0.1f)
+            barChart.groupBars(0f, groupSpace, barSpace)
+
+            barChart.xAxis.axisMinimum = 0f
+            barChart.xAxis.axisMaximum = groupCount
+            barChart.xAxis.setCenterAxisLabels(true)
+            barChart.xAxis.granularity = 1f
+            barChart.xAxis.valueFormatter = IndexAxisValueFormatter(months)
+
+            barChart.setVisibleXRangeMaximum(minOf(4f, groupCount))
+            barChart.moveViewToX(groupCount)
+
             barChart.animateY(1000, Easing.EaseInOutQuad)
             barChart.invalidate()
 

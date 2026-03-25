@@ -13,7 +13,7 @@ import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MainActivityHistoryMainte : AppCompatActivity() {
+class MainActivityHistoryMainte : BaseActivity() {
 
     private lateinit var listViewMaintenance: ListView
     private lateinit var emptyTextView: TextView

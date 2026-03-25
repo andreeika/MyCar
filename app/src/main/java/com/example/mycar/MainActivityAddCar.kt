@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 
-class MainActivityAddCar : AppCompatActivity() {
+class MainActivityAddCar : BaseActivity() {
 
     private lateinit var brandView: TextView
     private lateinit var modelView: TextView
@@ -72,7 +72,7 @@ class MainActivityAddCar : AppCompatActivity() {
     private fun initializeViews() {
         brandView = findViewById(R.id.brandAutoComplete)
         modelView = findViewById(R.id.modelAutoComplete)
-        mileageEditText = findViewById(R.id.textInputEditText)
+        mileageEditText = findViewById(R.id.textInputEditText2)
         saveButton = findViewById(R.id.button)
         deleteButton = findViewById(R.id.deleteButton)
         carImageView = findViewById(R.id.imageView11)

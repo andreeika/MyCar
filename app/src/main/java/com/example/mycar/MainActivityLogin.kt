@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivityLogin : AppCompatActivity() {
+class MainActivityLogin : BaseActivity() {
 
     private lateinit var etUsername: EditText
     private lateinit var etPassword: EditText

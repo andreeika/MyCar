@@ -11,14 +11,13 @@ import android.widget.ImageView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivityFuelCalculator : AppCompatActivity() {
+class MainActivityFuelCalculator : BaseActivity() {
 
     private lateinit var carSpinner: Spinner
     private lateinit var editTextDistance: EditText
@@ -85,7 +84,6 @@ class MainActivityFuelCalculator : AppCompatActivity() {
                     adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                     carSpinner.adapter = adapter
 
-                    // Выбираем нужный авто
                     val idx = if (preferredCarId != -1)
                         cars.indexOfFirst { it.id == preferredCarId }.takeIf { it != -1 } ?: 0
                     else 0

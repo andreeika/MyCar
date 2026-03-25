@@ -11,7 +11,7 @@ import androidx.core.content.ContextCompat
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.util.*
 
-class MainActivityHelp : AppCompatActivity() {
+class MainActivityHelp : BaseActivity() {
 
     private lateinit var expandableListView: ExpandableListView
     private lateinit var expandableListAdapter: SimpleExpandableListAdapter

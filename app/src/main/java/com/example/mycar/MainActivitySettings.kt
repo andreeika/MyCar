@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Date
 
-class MainActivitySettings : AppCompatActivity() {
+class MainActivitySettings : BaseActivity() {
 
     private lateinit var sessionManager: SessionManager
     private lateinit var sharedPreferences: SharedPreferences
@@ -486,7 +486,7 @@ class MainActivitySettings : AppCompatActivity() {
         val codeEdit = android.widget.EditText(this).apply {
             hint = "Введите 6-значный код"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            textSize = 20f
+            textSize = 16f
             gravity = android.view.Gravity.CENTER
             letterSpacing = 0.3f
         }

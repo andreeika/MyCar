@@ -22,6 +22,9 @@
             android:name=".MainActivityFuelCalculator"
             android:exported="false" />
         <activity
+            android:name=".MainActivityFuelCalculator"
+            android:exported="false" />
+        <activity
             android:name=".MainActivitySettings"
             android:exported="false" />
         <activity
