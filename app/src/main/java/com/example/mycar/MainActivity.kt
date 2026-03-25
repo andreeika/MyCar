@@ -115,7 +115,6 @@ class MainActivity : BaseActivity() {
         sharedPreferences = getSharedPreferences("my_car_prefs", MODE_PRIVATE)
 
         initViews()
-        setupStatusBarColors()
         setupNavigationDrawer()
         loadUserCars()
         setupClickListeners()
@@ -151,13 +150,6 @@ class MainActivity : BaseActivity() {
         swipeRefresh = findViewById(R.id.swipeRefresh)
         swipeRefresh.setColorSchemeColors(android.graphics.Color.parseColor("#228BE6"))
         swipeRefresh.setOnRefreshListener { loadUserCars(forceReload = true) }
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
     }
 
     private fun setupNavigationDrawer() {

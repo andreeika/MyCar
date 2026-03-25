@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -7,322 +7,352 @@
     android:background="#E4F1FF"
     tools:context=".MainActivityRefueling">
 
-    <!-- Заголовок -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardView"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        app:cardBackgroundColor="#228BE6"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"/>
-
-    <!-- Карточка с формой заправки -->
-    <TextView
-        android:id="@+id/textView2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Заправка"
-        android:textColor="#228BE6"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.022" />
-
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/refuelingCardView"
-        android:layout_width="0dp"
-        android:layout_height="480dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="32dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="32dp"
-        app:cardBackgroundColor="@android:color/white"
-        app:cardCornerRadius="10dp"
-        app:cardElevation="10dp"
-        app:layout_constraintBottom_toTopOf="@+id/addRefuelingButton"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView2"
-        app:layout_constraintVertical_bias="0.56"
-        app:strokeColor="#228BE6"
-        app:strokeWidth="2dp">
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp">
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
 
-            <!-- Дата заправки -->
-
+            <!-- Заголовок -->
             <TextView
-                android:id="@+id/dateEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_edit_text"
-                android:clickable="true"
-
-                android:drawableEnd="@drawable/calendar"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:hint="дд.мм.гггг"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <TextView
-                android:id="@+id/textViewDateLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:gravity="center_vertical"
-                android:text="Дата:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Вид топлива -->
-            <TextView
-                android:id="@+id/textViewFuelLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Топливо:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewDateLabel" />
-
-            <Spinner
-                android:id="@+id/fuelSpinner"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:paddingStart="12dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
-
-            <!-- Пробег -->
-            <TextView
-                android:id="@+id/textViewMileageLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Пробег:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewFuelLabel" />
-
-            <EditText
-                android:id="@+id/mileageEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:hint="км"
-                android:inputType="numberDecimal"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/fuelSpinner" />
-
-            <!-- Количество литров -->
-            <TextView
-                android:id="@+id/textViewVolumeLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Кол-во, л:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewMileageLabel" />
-
-            <EditText
-                android:id="@+id/volumeEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:hint="литры"
-                android:inputType="numberDecimal"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/mileageEditText" />
-
-            <!-- АЗС -->
-
-            <TextView
-                android:id="@+id/textViewStationLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="28dp"
-                android:gravity="center_vertical"
-                android:text="АЗС:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewVolumeLabel" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/stationTextInputLayout"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
-                android:layout_width="230dp"
+                android:id="@+id/textView2"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="64dp"
                 android:layout_marginTop="16dp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/volumeEditText">
-
-                <AutoCompleteTextView
-                    android:id="@+id/stationAutoComplete"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:completionThreshold="1"
-                    android:gravity="start|center_vertical"
-                    android:hint="Выберите или введите"
-                    android:inputType="text"
-                    android:maxLines="1"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:singleLine="true"
-                    android:textSize="14sp" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Цена за литр -->
-            <TextView
-                android:id="@+id/textViewPriceLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Цена, руб/л:"
-                android:textSize="16sp"
+                android:layout_marginEnd="56dp"
+                android:gravity="center"
+                android:text="Заправка"
+                android:textColor="#228BE6"
+                android:textSize="24sp"
                 android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewStationLabel" />
-
-            <EditText
-                android:id="@+id/priceEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:hint="руб."
-                android:inputType="numberDecimal"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/stationTextInputLayout" />
-
-            <!-- Сумма -->
-            <TextView
-                android:id="@+id/textViewTotalLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Сумма:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewPriceLabel" />
-
-            <TextView
-                android:id="@+id/totalAmountTextView"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:paddingStart="12dp"
-                android:text="0.00 руб"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/priceEditText" />
-
-            <!-- Полный бак -->
-            <CheckBox
-                android:id="@+id/fullTankCheckBox"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:text="Полный бак"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/totalAmountTextView" />
+                app:layout_constraintEnd_toStartOf="@+id/imageViewCancel"
+                app:layout_constraintStart_toEndOf="@+id/imageView8"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <ImageView
-                android:id="@+id/imageViewScanQr"
-                android:layout_width="120dp"
-                android:layout_height="50dp"
+                android:id="@+id/imageView8"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
                 android:layout_marginTop="16dp"
-                android:contentDescription="Сканировать QR"
-                app:layout_constraintBottom_toBottomOf="parent"
+                android:clickable="true"
+                android:focusable="true"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewTotalLabel"
-                app:srcCompat="@drawable/scan" />
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/history" />
+
+            <ImageView
+                android:id="@+id/imageViewCancel"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:tint="#228BE6"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/cancel" />
+
+            <!-- Карточка формы -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/refuelingCardView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginEnd="16dp"
+                app:cardBackgroundColor="@android:color/white"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="10dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/textView2"
+                app:strokeColor="#228BE6"
+                app:strokeWidth="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Дата -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewDateLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="40dp"
+                            android:gravity="center_vertical"
+                            android:text="Дата:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/dateEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/bg_edit_text"
+                            android:clickable="true"
+                            android:drawableEnd="@drawable/calendar"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:hint="дд.мм.гггг"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <!-- Топливо -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewFuelLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="40dp"
+                            android:gravity="center_vertical"
+                            android:text="Топливо:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <Spinner
+                            android:id="@+id/fuelSpinner"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:paddingStart="12dp" />
+                    </LinearLayout>
+
+                    <!-- Пробег -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewMileageLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="40dp"
+                            android:gravity="center_vertical"
+                            android:text="Пробег:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/mileageEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="км"
+                            android:inputType="numberDecimal"
+                            android:paddingStart="12dp"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <!-- Кол-во литров -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewVolumeLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="40dp"
+                            android:gravity="center_vertical"
+                            android:text="Кол-во, л:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/volumeEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="литры"
+                            android:inputType="numberDecimal"
+                            android:paddingStart="12dp"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <!-- АЗС -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewStationLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:text="АЗС:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/stationTextInputLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/stationAutoComplete"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:completionThreshold="1"
+                                android:gravity="start|center_vertical"
+                                android:hint="Выберите или введите"
+                                android:inputType="text"
+                                android:maxLines="1"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
+                                android:singleLine="true"
+                                android:textSize="14sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- Цена за литр -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewPriceLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="match_parent"
+                            android:gravity="center_vertical"
+                            android:text="Цена, руб/л:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/priceEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:hint="руб."
+                            android:inputType="numberDecimal"
+                            android:paddingStart="12dp"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                    <!-- Сумма -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/textViewTotalLabel"
+                            android:layout_width="100dp"
+                            android:layout_height="40dp"
+                            android:gravity="center_vertical"
+                            android:text="Сумма:"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/totalAmountTextView"
+                            android:layout_width="0dp"
+                            android:layout_height="40dp"
+                            android:layout_weight="1"
+                            android:gravity="center_vertical"
+                            android:paddingStart="12dp"
+                            android:text="0.00 руб"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Полный бак + QR -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/imageViewScanQr"
+                            android:layout_width="100dp"
+                            android:layout_height="44dp"
+                            android:clickable="true"
+                            android:contentDescription="Сканировать QR"
+                            android:focusable="true"
+                            app:srcCompat="@drawable/scan" />
+
+                        <TextView
+                            android:id="@+id/textView9"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1" />
+
+                        <CheckBox
+                            android:id="@+id/fullTankCheckBox"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginStart="8dp"
+                            android:text="Полный бак"
+                            android:textSize="15sp" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Кнопка Добавить -->
+            <Button
+                android:id="@+id/addRefuelingButton"
+                android:layout_width="0dp"
+                android:layout_height="50dp"
+                android:layout_marginStart="32dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginEnd="32dp"
+                android:backgroundTint="#228BE6"
+                android:text="Добавить"
+                android:textSize="18sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/refuelingCardView" />
+
+            <!-- Декоративная полоса снизу -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardView"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                app:cardBackgroundColor="#228BE6"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Кнопка Добавить -->
-
-    <!-- Кнопка отмены (крестик) -->
-    <Button
-        android:id="@+id/addRefuelingButton"
-        android:layout_width="150dp"
-        android:layout_height="50dp"
-        android:backgroundTint="#228BE6"
-        android:text="Добавить"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.908" />
-
-    <ImageView
-        android:id="@+id/imageViewCancel"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        android:contentDescription="Отмена"
-        android:tint="#228BE6"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.956"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.01999998"
-        app:srcCompat="@drawable/cancel" />
-
-    <!-- Кнопка сканирования QR -->
-
-    <!-- История -->
-    <ImageView
-        android:id="@+id/imageView8"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.043"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.023"
-        app:srcCompat="@drawable/history" />
+    </ScrollView>
 
     <!-- ProgressBar overlay -->
     <FrameLayout
@@ -330,8 +360,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#40E4F1FF"
-        android:visibility="gone"
-        android:elevation="10dp">
+        android:elevation="10dp"
+        android:visibility="gone">
         <ProgressBar
             android:layout_width="64dp"
             android:layout_height="64dp"
@@ -339,4 +369,4 @@
             android:indeterminateTint="#228BE6" />
     </FrameLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>

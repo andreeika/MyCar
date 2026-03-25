@@ -144,10 +144,7 @@ class MainActivityRefueling : BaseActivity() {
             }
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
+
     }
 
     private fun loadRefuelingData() {

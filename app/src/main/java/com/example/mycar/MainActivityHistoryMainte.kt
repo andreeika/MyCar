@@ -53,7 +53,6 @@ class MainActivityHistoryMainte : BaseActivity() {
         }
 
         initializeViews()
-        setupStatusBarColors()
         setupClickListeners()
         loadMaintenanceFromDatabase()
     }
@@ -95,13 +94,6 @@ class MainActivityHistoryMainte : BaseActivity() {
             textViewTitle.text = "Выбрано: $selectedCount"
         } else {
             textViewTitle.text = "История"
-        }
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
     }
 

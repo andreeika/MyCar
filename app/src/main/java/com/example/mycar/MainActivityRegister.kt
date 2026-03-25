@@ -44,10 +44,7 @@ class MainActivityRegister : BaseActivity() {
         ivCancel            = findViewById(R.id.imageViewCancel)
         progressOverlay     = findViewById(R.id.progressOverlay)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
+
 
         btnRegister.setOnClickListener {
             val fullName = editFullName.text.toString().trim()

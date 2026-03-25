@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.MyCar" parent="Base.Theme.MyCar">
+        <item name="android:statusBarColor">@color/my_status_bar_color</item>
+        <item name="android:navigationBarColor">@color/my_status_bar_color</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

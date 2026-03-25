@@ -37,11 +37,6 @@ class MainActivityFuelCalculator : BaseActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_fuel_calculator)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-        }
-
         carSpinner = findViewById(R.id.carSpinner)
         editTextDistance = findViewById(R.id.editTextDistance)
         editTextConsumption = findViewById(R.id.editTextConsumption)

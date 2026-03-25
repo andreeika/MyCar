@@ -21,7 +21,6 @@ open class BaseActivity : AppCompatActivity() {
 
     private fun applyPressAnimationsToAll(view: View) {
         when {
-            // Поля ввода — не трогаем, иначе блокируется фокус и клавиатура
             view is EditText -> return
             view is TextInputEditText -> return
             view is TextInputLayout -> return

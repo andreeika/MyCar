@@ -65,7 +65,6 @@ class MainActivityAddCar : BaseActivity() {
         initializeViews()
         checkEditMode()
         setClickListeners()
-        setupStatusBarColors()
         loadBrands()
     }
 
@@ -421,13 +420,6 @@ class MainActivityAddCar : BaseActivity() {
                     Toast.makeText(this@MainActivityAddCar, friendlyError(ex), Toast.LENGTH_LONG).show()
                 }
             }
-        }
-    }
-
-    private fun setupStatusBarColors() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
-            window.navigationBarColor = ContextCompat.getColor(this, R.color.my_status_bar_color)
         }
     }
 }
