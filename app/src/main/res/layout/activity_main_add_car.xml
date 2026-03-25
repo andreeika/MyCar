@@ -15,7 +15,7 @@
         android:layout_marginTop="24dp"
         android:padding="4dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/ph"
+        android:src="@drawable/car"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.497"
@@ -260,21 +260,21 @@
         app:layout_constraintVertical_bias="0.259"
         app:srcCompat="@drawable/cancel" />
 
+    <!-- ProgressBar overlay -->
+
     <ImageView
         android:id="@+id/editimageView"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_marginStart="122dp"
-        android:layout_marginTop="123dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginBottom="7dp"
+        android:layout_width="45dp"
+        android:layout_height="45dp"
+        android:layout_marginTop="150dp"
         app:layout_constraintBottom_toBottomOf="@+id/imageView11"
         app:layout_constraintEnd_toEndOf="@+id/imageView11"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="@+id/imageView11"
-        app:layout_constraintTop_toTopOf="@+id/imageView11"
+        app:layout_constraintTop_toTopOf="@+id/imageView10"
+        app:layout_constraintVertical_bias="0.0"
         app:srcCompat="@drawable/edit" />
 
-    <!-- ProgressBar overlay -->
     <FrameLayout
         android:id="@+id/progressOverlay"
         android:layout_width="match_parent"

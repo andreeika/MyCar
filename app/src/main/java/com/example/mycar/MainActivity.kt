@@ -501,7 +501,7 @@ class MainActivity : BaseActivity() {
             val bitmap = BitmapFactory.decodeByteArray(car.photoBytes, 0, car.photoBytes.size)
             imageView.setImageBitmap(bitmap)
         } else {
-            imageView.setImageResource(R.drawable.ph)
+            imageView.setImageResource(R.drawable.car)
         }
     }
 
@@ -509,7 +509,7 @@ class MainActivity : BaseActivity() {
         textView_Brand.text = "Нет автомобилей"
         textView_Name.text = "Добавьте данные"
         textView_Probeg.text = "0 км"
-        imageView.setImageResource(R.drawable.ph)
+        imageView.setImageResource(R.drawable.car)
 
         sharedPreferences.edit()
             .remove(PREF_CAR_ID)

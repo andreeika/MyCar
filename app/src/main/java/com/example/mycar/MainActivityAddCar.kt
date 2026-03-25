@@ -110,14 +110,13 @@ class MainActivityAddCar : BaseActivity() {
                 val bitmap = BitmapFactory.decodeByteArray(photoBytes, 0, photoBytes!!.size)
                 carImageView.setImageBitmap(bitmap)
             } else {
-                carImageView.setImageResource(R.drawable.ph)
+                carImageView.setImageResource(R.drawable.car)
             }
             validateSaveButton()
         } else {
             titleTextView.text = "Добавить авто"
             saveButton.text = "Добавить авто"
-            carImageView.setImageResource(R.drawable.ph)
-            editimageView.visibility = View.GONE
+            carImageView.setImageResource(R.drawable.car)
         }
     }
 
