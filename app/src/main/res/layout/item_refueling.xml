@@ -113,6 +113,19 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
+                <Button
+                    android:id="@+id/btnFiles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:backgroundTint="#228BE6"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="Посмотреть файлы"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
                 <TextView
                     android:id="@+id/fullTankTextView"
                     android:layout_width="wrap_content"
@@ -124,6 +137,7 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:visibility="gone" />
+
             </LinearLayout>
         </LinearLayout>
 
@@ -145,7 +159,6 @@
                 android:padding="8dp"
                 android:src="@drawable/edi"
                 app:tint="#228BE6" />
-
 
             <CheckBox
                 android:id="@+id/checkBox"

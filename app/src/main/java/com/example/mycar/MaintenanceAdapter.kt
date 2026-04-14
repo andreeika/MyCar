@@ -22,6 +22,7 @@ class MaintenanceAdapter(
     interface OnItemActionListener {
         fun onEditClick(item: MainActivityHistoryMainte.Maintenance)
         fun onSelectionChanged(selectedCount: Int)
+        fun onFilesClick(item: MainActivityHistoryMainte.Maintenance) {}
     }
 
     private var listener: OnItemActionListener? = null
@@ -83,6 +84,7 @@ class MaintenanceAdapter(
         val item = items[position]
         val checkBox: CheckBox = view.findViewById(R.id.checkBox)
         val btnEdit: ImageView = view.findViewById(R.id.btnEdit)
+        val btnFiles: android.widget.Button = view.findViewById(R.id.btnFiles)
         val dateText: TextView = view.findViewById(R.id.dateTextView)
         val stationText: TextView = view.findViewById(R.id.stationTextView)
         val fuelText: TextView = view.findViewById(R.id.fuelTextView)
@@ -111,6 +113,14 @@ class MaintenanceAdapter(
         fullTankText.visibility = View.GONE
         checkBox.visibility = View.VISIBLE
         checkBox.isChecked = isSelected(item.id)
+
+        // показываем кнопку файлов если есть файлы
+        if (item.hasFiles) {
+            btnFiles.visibility = View.VISIBLE
+            btnFiles.setOnClickListener { listener?.onFilesClick(item) }
+        } else {
+            btnFiles.visibility = View.GONE
+        }
 
         checkBox.setOnCheckedChangeListener { _, isChecked ->
             toggleSelection(item.id, isChecked)

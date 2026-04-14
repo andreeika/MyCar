@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.*
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -84,6 +85,10 @@ class MainActivityHistoryMainte : BaseActivity() {
                 updateDeleteButtonState(selectedCount)
                 updateTitle(selectedCount)
             }
+
+            override fun onFilesClick(item: Maintenance) {
+                showFilesDialog(item.id)
+            }
         })
 
         listViewMaintenance.adapter = adapter
@@ -122,30 +127,28 @@ class MainActivityHistoryMainte : BaseActivity() {
             try {
                 val arr = ApiClient.getMaintenance(currentCarId)
                 val newMaintenanceList = mutableListOf<Maintenance>()
-                val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
-                val isoFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
                     val dateStr = obj.optString("date", "")
-                    val formattedDate = try {
-                        dateFormat.format(isoFormat.parse(dateStr) ?: return@launch)
-                    } catch (e: Exception) { dateStr }
+                    val formattedDate = parseToDisplayDate(dateStr)
 
                     val nextDateStr = obj.optString("next_service_date", "")
-                    val formattedNextDate = if (nextDateStr.isNotEmpty() && nextDateStr != "null") {
-                        try { dateFormat.format(isoFormat.parse(nextDateStr)) }
-                        catch (e: Exception) { "" }
-                    } else ""
+                    val formattedNextDate = if (nextDateStr.isNotEmpty() && nextDateStr != "null")
+                        parseToDisplayDate(nextDateStr) else ""
+
+                    val maintenanceId = obj.getInt("maintenance_id")
+                    val filesArr = try { ApiClient.getMaintenanceFiles(maintenanceId) } catch (e: Exception) { org.json.JSONArray() }
 
                     newMaintenanceList.add(Maintenance(
-                        id = obj.getInt("maintenance_id"),
+                        id = maintenanceId,
                         date = formattedDate,
                         mileage = obj.optDouble("mileage", 0.0),
                         totalAmount = obj.optDouble("total_amount", 0.0),
                         description = if (obj.isNull("description")) "" else obj.optString("description", ""),
                         nextServiceDate = formattedNextDate,
-                        serviceTypeName = if (obj.isNull("service_type")) "" else obj.optString("service_type", "")
+                        serviceTypeName = if (obj.isNull("service_type")) "" else obj.optString("service_type", ""),
+                        hasFiles = filesArr.length() > 0
                     ))
                 }
 
@@ -237,6 +240,110 @@ class MainActivityHistoryMainte : BaseActivity() {
         }
     }
 
+    private fun parseToDisplayDate(raw: String): String {
+        if (raw.isEmpty() || raw == "null") return ""
+        val display = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val formats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        )
+        for (fmt in formats) {
+            try {
+                fmt.isLenient = false
+                val d = fmt.parse(raw.trim()) ?: continue
+                return display.format(d)
+            } catch (_: Exception) {}
+        }
+        return raw
+    }
+
+    private fun showFilesDialog(maintenanceId: Int) {
+        progressOverlay.visibility = View.VISIBLE
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val arr = ApiClient.getMaintenanceFiles(maintenanceId)
+                val files = mutableListOf<Pair<Int, String>>() // file_id, name
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    files.add(Pair(obj.getInt("file_id"), obj.getString("file_name")))
+                }
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    if (files.isEmpty()) {
+                        Toast.makeText(this@MainActivityHistoryMainte, "Файлы не найдены", Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
+                    val names = files.map { it.second }.toTypedArray()
+                    AlertDialog.Builder(this@MainActivityHistoryMainte)
+                        .setTitle("Прикреплённые файлы")
+                        .setItems(names) { _, which ->
+                            openFile(files[which].first, files[which].second)
+                        }
+                        .setNegativeButton("Закрыть", null)
+                        .show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    Toast.makeText(this@MainActivityHistoryMainte, "Ошибка загрузки файлов", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun openFile(fileId: Int, fileName: String) {
+        progressOverlay.visibility = View.VISIBLE
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                // Скачиваем файл в кэш
+                val url = java.net.URL("${ApiClient.BASE_URL}/maintenance/files/$fileId")
+                val tmp = File(cacheDir, fileName)
+                url.openStream().use { input ->
+                    java.io.FileOutputStream(tmp).use { output -> input.copyTo(output) }
+                }
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    this@MainActivityHistoryMainte,
+                    "${packageName}.provider",
+                    tmp
+                )
+                val mime = getMimeType(fileName)
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, mime)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    try {
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        // fallback — открыть в браузере напрямую
+                        startActivity(Intent(Intent.ACTION_VIEW,
+                            android.net.Uri.parse("${ApiClient.BASE_URL}/maintenance/files/$fileId")))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "openFile error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    progressOverlay.visibility = View.GONE
+                    Toast.makeText(this@MainActivityHistoryMainte, "Не удалось открыть файл", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun getMimeType(fileName: String): String {
+        return when {
+            fileName.endsWith(".pdf", true) -> "application/pdf"
+            fileName.endsWith(".jpg", true) || fileName.endsWith(".jpeg", true) -> "image/jpeg"
+            fileName.endsWith(".png", true) -> "image/png"
+            fileName.endsWith(".doc", true) -> "application/msword"
+            fileName.endsWith(".docx", true) -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            else -> "*/*"
+        }
+    }
+
     private fun openEditActivity(item: Maintenance) {
         try {
             val intent = Intent(this, MainActivityMaintenance::class.java).apply {
@@ -276,6 +383,7 @@ class MainActivityHistoryMainte : BaseActivity() {
         val totalAmount: Double,
         val description: String,
         val nextServiceDate: String,
-        val serviceTypeName: String
+        val serviceTypeName: String,
+        val hasFiles: Boolean = false
     )
 }

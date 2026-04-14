@@ -108,12 +108,56 @@ class MaintenanceCheckWorker(
                             )
                         }
                     }
+
+                    // Проверка: не пора ли заправиться
+                    checkRefuelReminder(carId, carName, currentMileage)
                 }
                 Result.success()
             } catch (e: Exception) {
                 Result.retry()
             }
         }
+    }
+
+    private suspend fun checkRefuelReminder(carId: Int, carName: String, currentMileage: Int) {
+        try {
+            val refuelingArr = ApiClient.getRefueling(carId)
+            if (refuelingArr.length() == 0) return
+
+            // Последняя заправка
+            val last = refuelingArr.getJSONObject(0)
+            val lastMileage = last.optInt("mileage", 0)
+            val mileageSinceFuel = currentMileage - lastMileage
+            if (mileageSinceFuel <= 0) return
+
+            // Средний расход из последних заправок (до 5)
+            var totalVolume = 0.0
+            var totalDist = 0
+            val count = minOf(refuelingArr.length() - 1, 5)
+            for (i in 0 until count) {
+                val cur = refuelingArr.getJSONObject(i)
+                val prev = refuelingArr.getJSONObject(i + 1)
+                val dist = cur.optInt("mileage", 0) - prev.optInt("mileage", 0)
+                val vol = cur.optDouble("volume", 0.0)
+                if (dist > 0 && vol > 0) { totalVolume += vol; totalDist += dist }
+            }
+
+            // Типичный бак ~50л, если нет данных
+            val tankSize = 50.0
+            val avgConsumption = if (totalDist > 0) totalVolume / totalDist * 100 else 10.0
+            // Примерный запас хода
+            val estimatedRange = (tankSize / avgConsumption * 100).toInt()
+            val threshold = (estimatedRange * 0.85).toInt() // 85% бака
+
+            if (mileageSinceFuel >= threshold) {
+                val notifId = carId * 100000 + 99999
+                sendPush(
+                    id = notifId,
+                    title = "⛽ Пора заправиться — $carName",
+                    text = "Пробег с последней заправки: $mileageSinceFuel км. Рекомендуем заправиться."
+                )
+            }
+        } catch (_: Exception) {}
     }
 
     private fun sendPush(id: Int, title: String, text: String) {

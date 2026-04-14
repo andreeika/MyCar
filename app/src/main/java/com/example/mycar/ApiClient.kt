@@ -1,17 +1,20 @@
 package com.example.mycar
 
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 
 object ApiClient {
 
-    private const val BASE_URL = "https://fruitlessly-supreme-minnow.cloudpub.ru"
+    const val BASE_URL = "https://fruitlessly-supreme-minnow.cloudpub.ru"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -217,6 +220,22 @@ object ApiClient {
 
 
     fun getMaintenance(carId: Int): JSONArray = getArray("/cars/$carId/maintenance")
+
+    fun uploadMaintenanceFile(maintenanceId: Int, file: File, mimeType: String): JSONObject {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("file", file.name, file.asRequestBody(mimeType.toMediaType()))
+            .build()
+        val req = Request.Builder().url("$BASE_URL/maintenance/$maintenanceId/files").post(body).build()
+        return client.newCall(req).execute().use { resp ->
+            val respBody = resp.body?.string() ?: "{}"
+            if (!resp.isSuccessful) throw ApiException(resp.code, respBody)
+            JSONObject(respBody)
+        }
+    }
+
+    fun getMaintenanceFiles(maintenanceId: Int): JSONArray = getArray("/maintenance/$maintenanceId/files")
+
+    fun deleteMaintenanceFile(fileId: Int): JSONObject = delete("/maintenance/files/$fileId")
 
     fun addMaintenance(
         carId: Int, serviceTypeId: Int, date: String, mileage: Int,

@@ -50,11 +50,11 @@
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/maintenanceCardView"
         android:layout_width="0dp"
-        android:layout_height="480dp"
+        android:layout_height="0dp"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="24dp"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         app:cardBackgroundColor="@android:color/white"
         app:cardCornerRadius="10dp"
         app:cardElevation="10dp"
@@ -65,214 +65,265 @@
         app:strokeColor="#228BE6"
         app:strokeWidth="2dp">
 
-        <androidx.constraintlayout.widget.ConstraintLayout
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="16dp">
+            android:layout_height="match_parent">
 
-            <!-- Дата обслуживания -->
-
-            <TextView
-                android:id="@+id/nextServiceDateEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="36dp"
-
-                android:layout_weight="1"
-                android:background="@drawable/bg_edit_text"
-                android:clickable="true"
-                android:drawableEnd="@drawable/calendar"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:hint="дд.мм.гггг"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/nextServiceMileageEditText" />
-
-            <TextView
-                android:id="@+id/textViewDateLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:gravity="center_vertical"
-                android:text="Дата:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- Тип обслуживания -->
-            <TextView
-                android:id="@+id/textViewServiceTypeLabel"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Тип:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewDateLabel" />
-
-            <TextView
-                android:id="@+id/serviceTypeSpinner"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_edit_text"
-                android:clickable="true"
-                android:ellipsize="end"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:hint="Выберите тип обслуживания"
-                android:maxLines="1"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:textSize="14sp"
-                app:layout_constraintEnd_toStartOf="@+id/addServiceTypeButton"
-                app:layout_constraintStart_toEndOf="@+id/textViewServiceTypeLabel"
-                app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
-
-            <!-- Пробег -->
-            <Button
-                android:id="@+id/addServiceTypeButton"
-                android:layout_width="33dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#228BE6"
-                android:padding="0dp"
-                android:text="+"
-                android:textSize="20sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
-
-            <TextView
-                android:id="@+id/textViewMileageLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Текущий пробег:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewServiceTypeLabel" />
-
-            <EditText
-                android:id="@+id/mileageEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:hint="км"
-                android:inputType="numberDecimal"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/serviceTypeSpinner" />
-
-            <!-- Стоимость -->
-            <TextView
-                android:id="@+id/textViewAmountLabel"
-                android:layout_width="100dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Стоимость:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewMileageLabel" />
-
-            <EditText
-                android:id="@+id/amountEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="16dp"
-                android:hint="руб."
-                android:inputType="numberDecimal"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/mileageEditText" />
-
-            <!-- Следующее обслуживание -->
-            <TextView
-                android:id="@+id/textViewNextServiceLabel"
-                android:layout_width="119dp"
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Пробег на следующее обслуживание:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewAmountLabel" />
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/textViewNextServiceLabel4"
-                android:layout_width="122dp"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:gravity="center_vertical"
-                android:text="Дата следующего обслуживания:"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewNextServiceLabel" />
+                <!-- Дата обслуживания -->
 
-            <!-- Описание -->
+                <TextView
+                    android:id="@+id/nextServiceDateEditText"
+                    android:layout_width="180dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="36dp"
 
-            <EditText
-                android:id="@+id/nextServiceMileageEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_marginTop="32dp"
-                android:hint="км"
-                android:inputType="number"
-                android:maxLength="10"
-                android:paddingStart="12dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/amountEditText" />
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_edit_text"
+                    android:clickable="true"
+                    android:drawableEnd="@drawable/calendar"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:hint="дд.мм.гггг"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/nextServiceMileageEditText" />
 
-            <EditText
-                android:id="@+id/descriptionEditText"
-                android:layout_width="320dp"
-                android:layout_height="74dp"
-                android:layout_marginTop="16dp"
-                android:gravity="top"
-                android:hint="Дополнительная информация..."
-                android:inputType="textMultiLine"
-                android:paddingStart="12dp"
-                android:paddingTop="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="0.49"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textViewNextServiceLabel4" />
+                <TextView
+                    android:id="@+id/textViewDateLabel"
+                    android:layout_width="100dp"
+                    android:layout_height="40dp"
+                    android:gravity="center_vertical"
+                    android:text="Дата:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
 
-            <TextView
-                android:id="@+id/dateEditText"
-                android:layout_width="180dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_edit_text"
-                android:clickable="true"
+                <!-- Тип обслуживания -->
+                <TextView
+                    android:id="@+id/textViewServiceTypeLabel"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:text="Тип:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewDateLabel" />
 
-                android:drawableEnd="@drawable/calendar"
-                android:focusable="true"
-                android:gravity="center_vertical"
-                android:hint="дд.мм.гггг"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:textSize="16sp"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                <TextView
+                    android:id="@+id/serviceTypeSpinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_edit_text"
+                    android:clickable="true"
+                    android:ellipsize="end"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:hint="Выберите тип обслуживания"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textSize="14sp"
+                    app:layout_constraintEnd_toStartOf="@+id/addServiceTypeButton"
+                    app:layout_constraintStart_toEndOf="@+id/textViewServiceTypeLabel"
+                    app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
 
-        </androidx.constraintlayout.widget.ConstraintLayout>
+                <!-- Пробег -->
+                <Button
+                    android:id="@+id/addServiceTypeButton"
+                    android:layout_width="33dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:backgroundTint="#228BE6"
+                    android:padding="0dp"
+                    android:text="+"
+                    android:textSize="20sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/dateEditText" />
+
+                <TextView
+                    android:id="@+id/textViewMileageLabel"
+                    android:layout_width="100dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:text="Текущий пробег:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewServiceTypeLabel" />
+
+                <EditText
+                    android:id="@+id/mileageEditText"
+                    android:layout_width="180dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:hint="км"
+                    android:inputType="numberDecimal"
+                    android:paddingStart="12dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/serviceTypeSpinner" />
+
+                <!-- Стоимость -->
+                <TextView
+                    android:id="@+id/textViewAmountLabel"
+                    android:layout_width="100dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:text="Стоимость:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewMileageLabel" />
+
+                <EditText
+                    android:id="@+id/amountEditText"
+                    android:layout_width="180dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="16dp"
+                    android:hint="руб."
+                    android:inputType="numberDecimal"
+                    android:paddingStart="12dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/mileageEditText" />
+
+                <!-- Следующее обслуживание -->
+                <TextView
+                    android:id="@+id/textViewNextServiceLabel"
+                    android:layout_width="119dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:text="Пробег на следующее обслуживание:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewAmountLabel" />
+
+                <TextView
+                    android:id="@+id/textViewNextServiceLabel4"
+                    android:layout_width="122dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:text="Дата следующего обслуживания:"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewNextServiceLabel" />
+
+                <!-- Описание -->
+
+                <EditText
+                    android:id="@+id/nextServiceMileageEditText"
+                    android:layout_width="180dp"
+                    android:layout_height="40dp"
+                    android:layout_marginTop="32dp"
+                    android:hint="км"
+                    android:inputType="number"
+                    android:maxLength="10"
+                    android:paddingStart="12dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/amountEditText" />
+
+                <EditText
+                    android:id="@+id/descriptionEditText"
+                    android:layout_width="320dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:hint="Дополнительная информация..."
+                    android:inputType="textMultiLine"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintHorizontal_bias="0.49"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/textViewNextServiceLabel4" />
+
+                <!-- Прикрепить файлы -->
+                <View
+                    android:id="@+id/dividerFiles"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:background="#FFFFFF"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/descriptionEditText" />
+
+                <TextView
+                    android:id="@+id/textViewFilesLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Прикреплённые файлы"
+                    android:textColor="#228BE6"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/dividerFiles" />
+
+                <ImageView
+                    android:id="@+id/btnAttachFile"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="4dp"
+                    android:src="@drawable/create_new_folder"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/dividerFiles"
+                    app:tint="#228BE6" />
+
+                <LinearLayout
+                    android:id="@+id/layoutAttachedFiles"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingBottom="8dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/btnAttachFile" />
+
+                <TextView
+                    android:id="@+id/dateEditText"
+                    android:layout_width="180dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_edit_text"
+                    android:clickable="true"
+
+                    android:drawableEnd="@drawable/calendar"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:hint="дд.мм.гггг"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:textSize="16sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </ScrollView>
+
     </com.google.android.material.card.MaterialCardView>
 
     <Button
@@ -280,7 +331,7 @@
         android:layout_width="0dp"
         android:layout_height="50dp"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="32dp"
         android:layout_marginEnd="32dp"
         android:backgroundTint="#228BE6"
         android:text="Добавить"

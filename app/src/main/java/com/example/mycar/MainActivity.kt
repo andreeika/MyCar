@@ -282,6 +282,13 @@ class MainActivity : BaseActivity() {
 
     private fun handleNavigationItem(itemId: Int): Boolean {
         when (itemId) {
+            R.id.nav_maintenance_calendar -> {
+                drawerLayout.close()
+                val intent = Intent(this, ActivityMaintenanceCalendar::class.java)
+                if (selectedCarId != -1) intent.putExtra("car_id", selectedCarId)
+                startActivity(intent)
+                return true
+            }
             R.id.nav_calculator -> {
                 drawerLayout.close()
                 val intent = Intent(this, MainActivityFuelCalculator::class.java)

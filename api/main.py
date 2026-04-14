@@ -6,7 +6,7 @@ import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import Response
 from pydantic import BaseModel
 import pyodbc
@@ -538,6 +538,68 @@ def delete_maintenance(car_id: int, maintenance_id: int):
         )
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="Запись не найдена")
+        conn.commit()
+    return {"ok": True}
+
+
+# ─── maintenance files ───────────────────────────────────────────────────────
+
+@app.post("/maintenance/{maintenance_id}/files", status_code=201)
+async def upload_maintenance_file(maintenance_id: int, file: UploadFile = File(...)):
+    data = await file.read()
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Файл слишком большой (макс. 20 МБ)")
+    mime = file.content_type or "application/octet-stream"
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM Maintenance WHERE maintenance_id=?", maintenance_id)
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Запись обслуживания не найдена")
+        cur.execute(
+            "INSERT INTO MaintenanceFiles (maintenance_id, file_name, file_data, mime_type) VALUES (?,?,?,?)",
+            maintenance_id, file.filename, data, mime,
+        )
+        file_id = cur.execute(
+            "SELECT MAX(file_id) FROM MaintenanceFiles WHERE maintenance_id=?", maintenance_id
+        ).fetchone()[0]
+        conn.commit()
+    return {"file_id": file_id, "file_name": file.filename, "mime_type": mime}
+
+
+@app.get("/maintenance/{maintenance_id}/files")
+def get_maintenance_files(maintenance_id: int):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT file_id, file_name, mime_type, uploaded_at FROM MaintenanceFiles WHERE maintenance_id=? ORDER BY uploaded_at",
+            maintenance_id,
+        )
+        rows = cur.fetchall()
+    return [row_to_dict(cur, r) for r in rows]
+
+
+@app.get("/maintenance/files/{file_id}")
+def download_maintenance_file(file_id: int):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT file_data, mime_type, file_name FROM MaintenanceFiles WHERE file_id=?", file_id)
+        row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    return Response(
+        content=bytes(row[0]),
+        media_type=row[1],
+        headers={"Content-Disposition": f'attachment; filename="{row[2]}"'},
+    )
+
+
+@app.delete("/maintenance/files/{file_id}")
+def delete_maintenance_file(file_id: int):
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM MaintenanceFiles WHERE file_id=?", file_id)
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Файл не найден")
         conn.commit()
     return {"ok": True}
 
