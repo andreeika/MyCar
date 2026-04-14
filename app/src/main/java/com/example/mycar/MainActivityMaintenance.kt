@@ -3,21 +3,41 @@ package com.example.mycar
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivityMaintenance : BaseActivity() {
+
+    private lateinit var btnAttachFile: ImageView
+    private lateinit var layoutAttachedFiles: LinearLayout
+
+    // pending files to upload (before maintenance is saved)
+    private val pendingFiles = mutableListOf<Pair<Uri, String>>() // uri to filename
+    // already saved files (edit mode)
+    private val savedFiles = mutableListOf<Triple<Int, String, String>>() // file_id, name, mime
+
+    private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        uris.forEach { uri ->
+            val name = getFileName(uri)
+            pendingFiles.add(Pair(uri, name))
+            addPendingFileChip(uri, name)
+        }
+    }
 
     private lateinit var serviceTypeView: TextView
     private lateinit var dateEditText: TextView
@@ -94,7 +114,8 @@ class MainActivityMaintenance : BaseActivity() {
         history = findViewById(R.id.imageView12)
         progressOverlay = findViewById(R.id.progressOverlay)
         addServiceTypeButton = findViewById(R.id.addServiceTypeButton)
-
+        btnAttachFile = findViewById(R.id.btnAttachFile)
+        layoutAttachedFiles = findViewById(R.id.layoutAttachedFiles)
     }
 
     private fun setCurrentDate() {
@@ -113,17 +134,35 @@ class MainActivityMaintenance : BaseActivity() {
                     val obj = arr.getJSONObject(i)
                     if (obj.getInt("maintenance_id") == currentMaintenanceId) {
                         withContext(Dispatchers.Main) {
-                            dateEditText.setText(obj.optString("date", ""))
+                            // дата — может прийти как "2025-01-15T00:00:00" или "dd.MM.yyyy"
+                            val rawDate = obj.optString("date", "")
+                            dateEditText.setText(parseToDisplayDate(rawDate))
+
                             mileageEditText.setText(obj.optInt("mileage", 0).toString())
                             amountEditText.setText(String.format(Locale.getDefault(), "%.2f", obj.optDouble("total_amount", 0.0)))
                             descriptionEditText.setText(obj.optString("description", ""))
+
                             val nsm = obj.optInt("next_service_mileage", 0)
                             if (nsm > 0) nextServiceMileageEditText.setText(nsm.toString())
+
                             val nsd = obj.optString("next_service_date", "")
-                            if (nsd.isNotEmpty()) nextServiceDateEditText.setText(nsd)
+                            if (nsd.isNotEmpty() && nsd != "null")
+                                nextServiceDateEditText.setText(parseToDisplayDate(nsd))
+
+                            // тип обслуживания — ищем по имени если нет service_type_id
                             val stId = obj.optInt("service_type_id", 0)
-                            selectedServiceTypeId = stId
-                            selectServiceTypeInSpinner(stId)
+                            if (stId != 0) {
+                                selectedServiceTypeId = stId
+                                selectServiceTypeInSpinner(stId)
+                            } else {
+                                val stName = obj.optString("service_type", "")
+                                val found = serviceTypes.find { it.name == stName }
+                                if (found != null) {
+                                    selectedServiceTypeId = found.serviceTypeId
+                                    selectServiceTypeInSpinner(found.serviceTypeId)
+                                }
+                            }
+                            loadSavedFiles(currentMaintenanceId!!)
                         }
                         return@launch
                     }
@@ -135,6 +174,26 @@ class MainActivityMaintenance : BaseActivity() {
                 }
             }
         }
+    }
+
+    /** Конвертирует любой формат даты с сервера в dd.MM.yyyy */
+    private fun parseToDisplayDate(raw: String): String {
+        if (raw.isEmpty() || raw == "null") return ""
+        val display = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        val formats = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+        )
+        for (fmt in formats) {
+            try {
+                fmt.isLenient = false
+                val d = fmt.parse(raw.trim()) ?: continue
+                return display.format(d)
+            } catch (_: Exception) {}
+        }
+        return raw
     }
 
     private fun selectServiceTypeInSpinner(serviceTypeId: Int) {
@@ -190,6 +249,10 @@ class MainActivityMaintenance : BaseActivity() {
 
         addServiceTypeButton.setOnClickListener {
             showAddServiceTypeDialog()
+        }
+
+        btnAttachFile.setOnClickListener {
+            pickFileLauncher.launch("*/*")
         }
     }
 
@@ -558,10 +621,12 @@ class MainActivityMaintenance : BaseActivity() {
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                ApiClient.addMaintenance(
+                val result = ApiClient.addMaintenance(
                     carId, selectedServiceTypeId, date, mileage,
                     amount, description, nextServiceMileage, nextServiceDate
                 )
+                val maintenanceId = result.getInt("maintenance_id")
+                uploadPendingFiles(maintenanceId)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     showSuccessMessage("Обслуживание успешно добавлено!")
@@ -594,6 +659,7 @@ class MainActivityMaintenance : BaseActivity() {
                     currentCarId, currentMaintenanceId!!, selectedServiceTypeId, date, mileage,
                     amount, description, nextServiceMileage, nextServiceDate
                 )
+                uploadPendingFiles(currentMaintenanceId!!)
                 withContext(Dispatchers.Main) {
                     progressOverlay.visibility = android.view.View.GONE
                     Toast.makeText(this@MainActivityMaintenance, "Обслуживание успешно обновлено", Toast.LENGTH_SHORT).show()
@@ -611,6 +677,108 @@ class MainActivityMaintenance : BaseActivity() {
                 }
             }
         }
+    }
+
+    private fun uploadPendingFiles(maintenanceId: Int) {
+        pendingFiles.forEach { (uri, name) ->
+            try {
+                val mime = contentResolver.getType(uri) ?: "application/octet-stream"
+                val tmp = File(cacheDir, name)
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tmp).use { output -> input.copyTo(output) }
+                }
+                ApiClient.uploadMaintenanceFile(maintenanceId, tmp, mime)
+                tmp.delete()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to upload file $name: ${e.message}")
+            }
+        }
+        pendingFiles.clear()
+    }
+
+    private fun loadSavedFiles(maintenanceId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val arr = ApiClient.getMaintenanceFiles(maintenanceId)
+                savedFiles.clear()
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    savedFiles.add(Triple(obj.getInt("file_id"), obj.getString("file_name"), obj.getString("mime_type")))
+                }
+                withContext(Dispatchers.Main) {
+                    savedFiles.forEach { (fileId, name, _) -> addSavedFileChip(fileId, name) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load files: ${e.message}")
+            }
+        }
+    }
+
+    private fun addPendingFileChip(uri: Uri, name: String) {
+        val row = layoutInflater.inflate(android.R.layout.simple_list_item_1, layoutAttachedFiles, false) as TextView
+        row.text = "📎 $name"
+        row.textSize = 13f
+        row.setTextColor(android.graphics.Color.parseColor("#333333"))
+        row.setPadding(8, 4, 8, 4)
+        row.setOnLongClickListener {
+            pendingFiles.removeAll { it.first == uri }
+            layoutAttachedFiles.removeView(row)
+            true
+        }
+        layoutAttachedFiles.addView(row)
+    }
+
+    private fun addSavedFileChip(fileId: Int, name: String) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(8, 4, 8, 4)
+        }
+
+        val nameView = TextView(this).apply {
+            text = "📄 $name"
+            textSize = 13f
+            setTextColor(android.graphics.Color.parseColor("#228BE6"))
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val deleteBtn = TextView(this).apply {
+            text = "✕"
+            textSize = 14f
+            setTextColor(android.graphics.Color.parseColor("#EF4444"))
+            setPadding(16, 0, 8, 0)
+            setOnClickListener {
+                androidx.appcompat.app.AlertDialog.Builder(this@MainActivityMaintenance)
+                    .setTitle("Удалить файл?")
+                    .setMessage(name)
+                    .setPositiveButton("Удалить") { _, _ ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                ApiClient.deleteMaintenanceFile(fileId)
+                                withContext(Dispatchers.Main) {
+                                    layoutAttachedFiles.removeView(row)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Delete file error: ${e.message}")
+                            }
+                        }
+                    }
+                    .setNegativeButton("Отмена", null)
+                    .show()
+            }
+        }
+
+        row.addView(nameView)
+        row.addView(deleteBtn)
+        layoutAttachedFiles.addView(row)
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name = "file_${System.currentTimeMillis()}"
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && idx >= 0) name = cursor.getString(idx)
+        }
+        return name
     }
 
     private fun showSuccessMessage(message: String = "Обслуживание успешно добавлено!") {

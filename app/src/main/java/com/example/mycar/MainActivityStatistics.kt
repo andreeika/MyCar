@@ -81,6 +81,12 @@ class MainActivityStatistics : BaseActivity() {
     private lateinit var textViewYearlyMaintenance: TextView
     private lateinit var textViewYearlyTotal: TextView
 
+    // График цен на топливо
+    private lateinit var fuelPriceChart: com.github.mikephil.charting.charts.LineChart
+    private lateinit var textFuelMinPrice: TextView
+    private lateinit var textFuelAvgPrice: TextView
+    private lateinit var textFuelMaxPrice: TextView
+
     private val userCars = mutableListOf<Car>()
     private var selectedCarId: Int = -1
 
@@ -153,6 +159,12 @@ class MainActivityStatistics : BaseActivity() {
             textViewYearlyFuel = findViewById(R.id.textViewYearlyFuel)
             textViewYearlyMaintenance = findViewById(R.id.textViewYearlyMaintenance)
             textViewYearlyTotal = findViewById(R.id.textViewYearlyTotal)
+
+            fuelPriceChart = findViewById(R.id.fuelPriceChart)
+            textFuelMinPrice = findViewById(R.id.textFuelMinPrice)
+            textFuelAvgPrice = findViewById(R.id.textFuelAvgPrice)
+            textFuelMaxPrice = findViewById(R.id.textFuelMaxPrice)
+            setupFuelPriceChart()
 
             setDefaultDates()
 
@@ -400,6 +412,7 @@ class MainActivityStatistics : BaseActivity() {
                     updateUI(statistics, monthlyStats, fuelConsumption)
                     updateMonthComparison(monthComparison)
                     updateYearlyCost(yearlyCost)
+                    loadFuelPrices(carId)
                 }
             } catch (ex: Exception) {
                 Log.e("Statistics", "Error loading statistics: ${ex.message}", ex)
@@ -725,6 +738,91 @@ class MainActivityStatistics : BaseActivity() {
         textViewYearlyFuel.text = if (fuel > 0) "%,d руб".format(fuel.toInt()) else "—"
         textViewYearlyMaintenance.text = if (maintenance > 0) "%,d руб".format(maintenance.toInt()) else "—"
         textViewYearlyTotal.text = if (total > 0) "%,d руб".format(total.toInt()) else "—"
+    }
+
+    private fun setupFuelPriceChart() {
+        fuelPriceChart.description.isEnabled = false
+        fuelPriceChart.setTouchEnabled(true)
+        fuelPriceChart.isDragEnabled = true
+        fuelPriceChart.setScaleEnabled(true)
+        fuelPriceChart.setPinchZoom(true)
+        fuelPriceChart.setDrawGridBackground(false)
+        fuelPriceChart.axisRight.isEnabled = false
+        fuelPriceChart.legend.isEnabled = true
+
+        val xAxis = fuelPriceChart.xAxis
+        xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+        xAxis.setDrawGridLines(false)
+        xAxis.granularity = 1f
+        xAxis.labelRotationAngle = -40f
+
+        fuelPriceChart.axisLeft.setDrawGridLines(true)
+        fuelPriceChart.axisLeft.axisMinimum = 0f
+    }
+
+    private fun loadFuelPrices(carId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val arr = ApiClient.getRefueling(carId)
+                data class PricePoint(val label: String, val price: Double, val fuel: String)
+                val points = mutableListOf<PricePoint>()
+
+                val isoFmt = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val dispFmt = java.text.SimpleDateFormat("dd.MM", Locale.getDefault())
+
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    val price = obj.optDouble("price_per_liter", 0.0)
+                    val dateStr = obj.optString("date", "")
+                    val fuel = obj.optString("fuel", "Топливо")
+                    if (price > 0 && dateStr.isNotEmpty()) {
+                        val label = try { dispFmt.format(isoFmt.parse(dateStr)!!) } catch (_: Exception) { dateStr }
+                        points.add(PricePoint(label, price, fuel))
+                    }
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (points.isEmpty()) return@withContext
+
+                    val allLabels = points.map { it.label }
+                    val byFuel = points.groupBy { it.fuel }
+                    val colors = listOf(
+                        Color.parseColor("#228BE6"),
+                        Color.parseColor("#40C057"),
+                        Color.parseColor("#FA5252"),
+                        Color.parseColor("#FCC419")
+                    )
+
+                    val dataSets = byFuel.entries.mapIndexed { idx, (fuelName, fuelPoints) ->
+                        val entries = fuelPoints.map { p ->
+                            com.github.mikephil.charting.data.Entry(allLabels.indexOf(p.label).toFloat(), p.price.toFloat())
+                        }
+                        com.github.mikephil.charting.data.LineDataSet(entries, fuelName).apply {
+                            color = colors[idx % colors.size]
+                            valueTextColor = colors[idx % colors.size]
+                            lineWidth = 2f
+                            setCircleColor(colors[idx % colors.size])
+                            circleRadius = 3f
+                            setDrawCircleHole(false)
+                            valueTextSize = 8f
+                            setDrawValues(false)
+                        }
+                    }
+
+                    fuelPriceChart.xAxis.valueFormatter = com.github.mikephil.charting.formatter.IndexAxisValueFormatter(allLabels)
+                    fuelPriceChart.xAxis.labelCount = minOf(6, allLabels.size)
+                    fuelPriceChart.data = com.github.mikephil.charting.data.LineData(dataSets)
+                    fuelPriceChart.legend.isEnabled = byFuel.size > 1
+                    fuelPriceChart.animateX(600, com.github.mikephil.charting.animation.Easing.EaseInOutQuad)
+                    fuelPriceChart.invalidate()
+
+                    val allPrices = points.map { it.price }
+                    textFuelMinPrice.text = "%.1f руб".format(allPrices.min())
+                    textFuelAvgPrice.text = "%.1f руб".format(allPrices.average())
+                    textFuelMaxPrice.text = "%.1f руб".format(allPrices.max())
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     class StatsAdapter(private val stats: List<StatItem>) :
