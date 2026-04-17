@@ -20,8 +20,10 @@ class MainActivityLogin : BaseActivity() {
     private lateinit var etPassword: EditText
     private lateinit var btnLogin: Button
     private lateinit var btnRegister: TextView
+    private lateinit var tvForgotPassword: TextView
     private lateinit var progressOverlay: android.widget.FrameLayout
     private val sessionManager by lazy { SessionManager(this) }
+    private var failedAttempts = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,8 +35,8 @@ class MainActivityLogin : BaseActivity() {
         etPassword = findViewById(R.id.editTextTextPassword)
         btnLogin   = findViewById(R.id.button)
         btnRegister = findViewById(R.id.textView12)
+        tvForgotPassword = findViewById(R.id.tvForgotPassword)
         progressOverlay = findViewById(R.id.progressOverlay)
-
 
         btnLogin.setOnClickListener {
             val username = etUsername.text.toString().trim()
@@ -47,6 +49,16 @@ class MainActivityLogin : BaseActivity() {
         btnRegister.setOnClickListener {
             startActivity(Intent(this, MainActivityRegister::class.java))
         }
+
+        tvForgotPassword.setOnClickListener {
+            openResetPassword()
+        }
+    }
+
+    private fun openResetPassword(prefillEmail: String = "") {
+        val intent = Intent(this, ResetPasswordActivity::class.java)
+        if (prefillEmail.isNotEmpty()) intent.putExtra("email", prefillEmail)
+        startActivity(intent)
     }
 
     private fun loginUser(username: String, password: String) {
@@ -73,7 +85,20 @@ class MainActivityLogin : BaseActivity() {
                         401 -> "Неверный логин или пароль"
                         else -> "Ошибка: ${e.message}"
                     }
-                    Toast.makeText(this@MainActivityLogin, msg, Toast.LENGTH_SHORT).show()
+                    if (e.code == 401) {
+                        failedAttempts++
+                        if (failedAttempts >= 3) {
+                            failedAttempts = 0
+                            Toast.makeText(this@MainActivityLogin,
+                                "Слишком много неудачных попыток. Восстановите пароль.", Toast.LENGTH_LONG).show()
+                            openResetPassword()
+                        } else {
+                            Toast.makeText(this@MainActivityLogin,
+                                "$msg (попытка $failedAttempts из 3)", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        Toast.makeText(this@MainActivityLogin, msg, Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {

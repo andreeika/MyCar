@@ -142,6 +142,59 @@ def verify_and_register(body: VerifyAndRegisterRequest):
     return UserResponse(user_id=new_id, full_name=body.full_name,
                         username=body.username, email=body.email)
 
+# { email: {"code": str, "expires": datetime} }
+_pending_resets: dict = {}
+
+class ResetPasswordSendRequest(BaseModel):
+    email: str
+
+class ResetPasswordVerifyRequest(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+@app.post("/auth/reset-password/send-code")
+def reset_password_send_code(body: ResetPasswordSendRequest):
+    """Отправляет код сброса пароля на email."""
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT user_id FROM users WHERE email = ?", body.email)
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Пользователь с таким email не найден")
+
+    code = str(random.randint(100000, 999999))
+    _pending_resets[body.email] = {
+        "code": code,
+        "expires": datetime.utcnow() + timedelta(minutes=10),
+    }
+    try:
+        _send_verification_email(body.email, code, subject="Сброс пароля MyCar", action="сброса пароля")
+    except Exception as e:
+        del _pending_resets[body.email]
+        raise HTTPException(status_code=500, detail=f"Ошибка отправки письма: {str(e)}")
+    return {"ok": True}
+
+@app.post("/auth/reset-password/verify")
+def reset_password_verify(body: ResetPasswordVerifyRequest):
+    """Проверяет код и устанавливает новый пароль."""
+    entry = _pending_resets.get(body.email)
+    if not entry:
+        raise HTTPException(status_code=400, detail="Сначала запросите код подтверждения")
+    if datetime.utcnow() > entry["expires"]:
+        del _pending_resets[body.email]
+        raise HTTPException(status_code=400, detail="Код истёк. Запросите новый")
+    if entry["code"] != body.code.strip():
+        raise HTTPException(status_code=400, detail="Неверный код")
+
+    del _pending_resets[body.email]
+    with get_connection() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET password = ? WHERE email = ?",
+                    hash_password(body.new_password), body.email)
+        conn.commit()
+    return {"ok": True}
+
 @app.post("/auth/login", response_model=UserResponse)
 def login(body: LoginRequest):
     with get_connection() as conn:

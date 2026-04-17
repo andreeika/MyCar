@@ -94,6 +94,14 @@ object ApiClient {
         })
     }
 
+    fun resetPasswordSendCode(email: String): JSONObject =
+        post("/auth/reset-password/send-code", JSONObject().apply { put("email", email) })
+
+    fun resetPasswordVerify(email: String, code: String, newPassword: String): JSONObject =
+        post("/auth/reset-password/verify", JSONObject().apply {
+            put("email", email); put("code", code); put("new_password", newPassword)
+        })
+
     fun verifyAndRegister(fullName: String, email: String, username: String, password: String, code: String): JSONObject {
         return post("/auth/verify-register", JSONObject().apply {
             put("full_name", fullName)
