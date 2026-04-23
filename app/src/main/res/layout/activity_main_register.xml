@@ -146,15 +146,32 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <EditText
-                        android:id="@+id/editTextPassword"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
                         android:layout_height="40dp"
                         android:layout_weight="1"
-                        android:hint="Введите пароль"
-                        android:inputType="textPassword"
-                        android:paddingStart="12dp"
-                        android:textSize="15sp" />
+                        app:passwordToggleEnabled="true"
+                        app:passwordToggleTint="#228BE6"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                        app:boxBackgroundColor="@android:color/white"
+                        app:boxStrokeColor="@android:color/transparent"
+                        app:hintEnabled="false">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editTextPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:background="@android:color/white"
+                            android:hint="Введите пароль"
+                            android:inputType="textPassword"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="48dp"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp"
+                            android:gravity="center_vertical"
+                            android:textSize="15sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
                 <LinearLayout
@@ -171,15 +188,32 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <EditText
-                        android:id="@+id/editTextConfirmPassword"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="0dp"
                         android:layout_height="40dp"
                         android:layout_weight="1"
-                        android:hint="Повторите пароль"
-                        android:inputType="textPassword"
-                        android:paddingStart="12dp"
-                        android:textSize="15sp" />
+                        app:passwordToggleEnabled="true"
+                        app:passwordToggleTint="#228BE6"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox"
+                        app:boxBackgroundColor="@android:color/white"
+                        app:boxStrokeColor="@android:color/transparent"
+                        app:hintEnabled="false">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editTextConfirmPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="40dp"
+                            android:background="@android:color/white"
+                            android:hint="Повторите пароль"
+                            android:inputType="textPassword"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="48dp"
+                            android:paddingTop="0dp"
+                            android:paddingBottom="0dp"
+                            android:gravity="center_vertical"
+                            android:textSize="15sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
             </LinearLayout>

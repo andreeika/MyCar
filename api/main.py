@@ -352,11 +352,16 @@ def delete_car(user_id: int, car_id: int):
     with get_connection() as conn:
         cur = conn.cursor()
         cur.execute(
-            "DELETE FROM Cars WHERE car_id = ? AND user_id = ?",
+            "SELECT car_id FROM Cars WHERE car_id = ? AND user_id = ?",
             car_id, user_id,
         )
-        if cur.rowcount == 0:
+        if not cur.fetchone():
             raise HTTPException(status_code=404, detail="Автомобиль не найден")
+        # удаляем связанные данные перед удалением автомобиля
+        cur.execute("DELETE FROM MaintenanceFiles WHERE maintenance_id IN (SELECT maintenance_id FROM Maintenance WHERE car_id = ?)", car_id)
+        cur.execute("DELETE FROM Maintenance WHERE car_id = ?", car_id)
+        cur.execute("DELETE FROM refueling WHERE car_id = ?", car_id)
+        cur.execute("DELETE FROM Cars WHERE car_id = ? AND user_id = ?", car_id, user_id)
         conn.commit()
     return {"ok": True}
 
@@ -736,7 +741,7 @@ def get_fuel_consumption(car_id: int, date_from: str, date_to: str):
     dt = parse_date(date_to)
     with get_connection() as conn:
         cur = conn.cursor()
-        # Try full-tank calculation first
+
         cur.execute(
             """
             WITH ft AS (
