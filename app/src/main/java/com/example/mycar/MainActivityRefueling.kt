@@ -31,7 +31,7 @@ class MainActivityRefueling : BaseActivity() {
     private lateinit var priceEditText: EditText
     private lateinit var dateEditText: TextView
     private lateinit var fullTankCheckBox: CheckBox
-    private lateinit var totalAmountTextView: TextView
+    private lateinit var totalAmountTextView: EditText
     private lateinit var addRefuelingButton: Button
     private lateinit var imageViewCancel: ImageView
     private lateinit var progressOverlay: android.widget.FrameLayout
@@ -292,28 +292,58 @@ class MainActivityRefueling : BaseActivity() {
         return true
     }
 
+    private var isCalculating = false
+
+    private fun String.toDoubleOrNullLocale(): Double? =
+        this.trim().replace(',', '.').toDoubleOrNull()
+
     private fun setAutoCalculateListener() {
-        val calculateListener = object : TextWatcher {
+        // объём × цена → сумма
+        val volumePriceWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
-                updateTotalAmount()
+                if (isCalculating) return
+                isCalculating = true
+                val volume = volumeEditText.text.toString().toDoubleOrNullLocale()
+                val price = priceEditText.text.toString().toDoubleOrNullLocale()
+                if (volume != null && price != null && volume > 0 && price > 0) {
+                    totalAmountTextView.setText("%.2f".format(volume * price))
+                }
+                isCalculating = false
             }
         }
 
-        volumeEditText.addTextChangedListener(calculateListener)
-        priceEditText.addTextChangedListener(calculateListener)
+        // сумма ÷ цена → объём
+        val totalWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                if (isCalculating) return
+                isCalculating = true
+                val total = totalAmountTextView.text.toString().toDoubleOrNullLocale()
+                val price = priceEditText.text.toString().toDoubleOrNullLocale()
+                if (total != null && price != null && total > 0 && price > 0) {
+                    volumeEditText.setText("%.2f".format(total / price))
+                }
+                isCalculating = false
+            }
+        }
+
+        volumeEditText.addTextChangedListener(volumePriceWatcher)
+        priceEditText.addTextChangedListener(volumePriceWatcher)
+        totalAmountTextView.addTextChangedListener(totalWatcher)
     }
 
     private fun updateTotalAmount() {
+        if (isCalculating) return
         try {
-            val volume = volumeEditText.text.toString().toDoubleOrNull() ?: 0.0
-            val price = priceEditText.text.toString().toDoubleOrNull() ?: 0.0
-            val total = volume * price
-            totalAmountTextView.text = "%.2f руб".format(total)
-        } catch (e: Exception) {
-            totalAmountTextView.text = "0.00 руб"
-        }
+            val volume = volumeEditText.text.toString().toDoubleOrNullLocale() ?: 0.0
+            val price = priceEditText.text.toString().toDoubleOrNullLocale() ?: 0.0
+            if (volume > 0 && price > 0) {
+                totalAmountTextView.setText("%.2f".format(volume * price))
+            }
+        } catch (e: Exception) { /* ignore */ }
     }
 
     private fun setClickListeners() {
@@ -360,36 +390,26 @@ class MainActivityRefueling : BaseActivity() {
             return false
         }
 
-        val mileage = mileageEditText.text.toString().toDoubleOrNull()
+        val mileage = mileageEditText.text.toString().toDoubleOrNullLocale()
         if (mileage == null || mileage <= 0) {
             mileageEditText.error = "Пробег должен быть положительным числом"
             mileageEditText.requestFocus()
             return false
         }
 
-        if (volumeEditText.text.toString().trim().isEmpty()) {
-            volumeEditText.error = "Введите количество литров"
-            volumeEditText.requestFocus()
-            return false
-        }
+        val volume = volumeEditText.text.toString().toDoubleOrNullLocale()
+        val price = priceEditText.text.toString().toDoubleOrNullLocale()
+        val total = totalAmountTextView.text.toString().toDoubleOrNullLocale()
 
-        val volume = volumeEditText.text.toString().toDoubleOrNull()
-        if (volume == null || volume <= 0) {
-            volumeEditText.error = "Количество должно быть положительным числом"
-            volumeEditText.requestFocus()
-            return false
-        }
-
-        if (priceEditText.text.toString().trim().isEmpty()) {
+        if (price == null || price <= 0) {
             priceEditText.error = "Введите цену за литр"
             priceEditText.requestFocus()
             return false
         }
 
-        val price = priceEditText.text.toString().toDoubleOrNull()
-        if (price == null || price <= 0) {
-            priceEditText.error = "Цена должна быть положительным числом"
-            priceEditText.requestFocus()
+        if ((volume == null || volume <= 0) && (total == null || total <= 0)) {
+            volumeEditText.error = "Введите литры или сумму"
+            volumeEditText.requestFocus()
             return false
         }
 
@@ -409,15 +429,18 @@ class MainActivityRefueling : BaseActivity() {
         return true
     }
 
+    private fun String.toDoubleLocale(): Double =
+        this.trim().replace(',', '.').toDouble()
+
     private fun updateRefueling() {
         addRefuelingButton.isEnabled = false
         progressOverlay.visibility = android.view.View.VISIBLE
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val dateText    = dateEditText.text.toString().trim()
-                val mileage     = mileageEditText.text.toString().toDouble()
-                val volume      = volumeEditText.text.toString().toDouble()
-                val price       = priceEditText.text.toString().toDouble()
+                val mileage     = mileageEditText.text.toString().toDoubleLocale()
+                val volume      = volumeEditText.text.toString().toDoubleLocale()
+                val price       = priceEditText.text.toString().toDoubleLocale()
                 val fullTank    = fullTankCheckBox.isChecked
                 val stationText = stationAutoComplete.text.toString().trim()
 
@@ -449,9 +472,9 @@ class MainActivityRefueling : BaseActivity() {
         coroutineScope.launch(Dispatchers.IO) {
             try {
                 val dateText    = dateEditText.text.toString().trim()
-                val mileage     = mileageEditText.text.toString().toDouble()
-                val volume      = volumeEditText.text.toString().toDouble()
-                val price       = priceEditText.text.toString().toDouble()
+                val mileage     = mileageEditText.text.toString().toDoubleLocale()
+                val volume      = volumeEditText.text.toString().toDoubleLocale()
+                val price       = priceEditText.text.toString().toDoubleLocale()
                 val fullTank    = fullTankCheckBox.isChecked
                 val stationText = stationAutoComplete.text.toString().trim()
 
