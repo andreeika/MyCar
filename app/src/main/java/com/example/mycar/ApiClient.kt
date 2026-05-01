@@ -14,15 +14,40 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    const val BASE_URL = "https://fruitlessly-supreme-minnow.cloudpub.ru"
+    // Список доступных серверов — ПК и ноутбук
+    private val SERVERS = listOf(
+        "https://fruitlessly-supreme-minnow.cloudpub.ru",  // текущий (ПК)
+        "https://ineptly-malleable-gull.cloudpub.ru"   // сюда вставь адрес ноутбука
+    )
+
+    @Volatile
+    var BASE_URL: String = SERVERS[0]
+        private set
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
     private val JSON = "application/json; charset=utf-8".toMediaType()
 
+    /** Вызови один раз при старте приложения (в фоновом потоке).
+     *  Выбирает первый сервер который ответил на /docs */
+    fun resolveServer() {
+        for (url in SERVERS) {
+            try {
+                val req = Request.Builder().url("$url/docs").get().build()
+                val resp = client.newCall(req).execute()
+                if (resp.isSuccessful || resp.code == 404) {
+                    BASE_URL = url
+                    android.util.Log.d("ApiClient", "Выбран сервер: $url")
+                    return
+                }
+            } catch (_: Exception) {
+                android.util.Log.d("ApiClient", "Сервер недоступен: $url")
+            }
+        }
+    }
 
     private fun get(path: String): JSONObject? {
         val req = Request.Builder().url("$BASE_URL$path").get().build()
