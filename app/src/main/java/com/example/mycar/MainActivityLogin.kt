@@ -31,6 +31,9 @@ class MainActivityLogin : BaseActivity() {
 
         if (sessionManager.isLoggedIn()) { startMain(); return }
 
+        // выбираем доступный сервер в фоне
+        CoroutineScope(Dispatchers.IO).launch { ApiClient.resolveServer() }
+
         etUsername = findViewById(R.id.editTextText)
         etPassword = findViewById(R.id.editTextTextPassword)
         btnLogin   = findViewById(R.id.button)
