@@ -1,7 +1,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.MyCar" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+    <!-- Принудительно используем светлую тему даже в тёмном режиме -->
+    <style name="Base.Theme.MyCar" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/my_home_bar_color</item>
+        <item name="colorSecondary">@color/my_home_bar_color</item>
+        <item name="android:statusBarColor">@color/my_status_bar_color</item>
+        <item name="android:navigationBarColor">@color/my_status_bar_color</item>
+        <item name="android:windowAnimationStyle">@style/ActivityAnimation</item>
     </style>
 </resources>

@@ -105,18 +105,28 @@ class MainActivityNotifications : BaseActivity() {
         recommendations: List<Notification>,
         info: List<Notification>
     ) {
-        recyclerViewUrgent.adapter = NotificationAdapter(urgent) { onNotificationClick(it) }
-        recyclerViewRecommendations.adapter = NotificationAdapter(recommendations) { onNotificationClick(it) }
-        recyclerViewInfo.adapter = NotificationAdapter(info) { onNotificationClick(it) }
+        val prefs = getSharedPreferences("my_car_prefs", MODE_PRIVATE)
+
+        fun filterDeleted(list: List<Notification>) = list
+            .filter { !prefs.getBoolean("notification_deleted_${it.id}", false) }
+            .toMutableList()
+
+        val filteredUrgent = filterDeleted(urgent)
+        val filteredRec = filterDeleted(recommendations)
+        val filteredInfo = filterDeleted(info)
+
+        recyclerViewUrgent.adapter = NotificationAdapter(filteredUrgent) { onNotificationClick(it) }
+        recyclerViewRecommendations.adapter = NotificationAdapter(filteredRec) { onNotificationClick(it) }
+        recyclerViewInfo.adapter = NotificationAdapter(filteredInfo) { onNotificationClick(it) }
 
         findViewById<View>(R.id.urgentNotificationsCard).visibility =
-            if (urgent.isEmpty()) View.GONE else View.VISIBLE
+            if (filteredUrgent.isEmpty()) View.GONE else View.VISIBLE
         findViewById<View>(R.id.maintenanceRecommendationsCard).visibility =
-            if (recommendations.isEmpty()) View.GONE else View.VISIBLE
+            if (filteredRec.isEmpty()) View.GONE else View.VISIBLE
         findViewById<View>(R.id.infoNotificationsCard).visibility =
-            if (info.isEmpty()) View.GONE else View.VISIBLE
+            if (filteredInfo.isEmpty()) View.GONE else View.VISIBLE
 
-        if (urgent.isEmpty() && recommendations.isEmpty() && info.isEmpty()) {
+        if (filteredUrgent.isEmpty() && filteredRec.isEmpty() && filteredInfo.isEmpty()) {
             findViewById<View>(R.id.textViewEmpty).visibility = View.VISIBLE
         } else {
             findViewById<View>(R.id.textViewEmpty).visibility = View.GONE
@@ -164,7 +174,7 @@ class MainActivityNotifications : BaseActivity() {
     }
 
     class NotificationAdapter(
-        private val notifications: List<Notification>,
+        private val notifications: MutableList<Notification>,
         private val onItemClick: (Notification) -> Unit
     ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
@@ -179,6 +189,7 @@ class MainActivityNotifications : BaseActivity() {
             val textViewMessage: TextView = view.findViewById(R.id.textViewMessage)
             val textViewDate: TextView = view.findViewById(R.id.textViewDate)
             val textViewCarInfo: TextView = view.findViewById(R.id.textViewCarInfo)
+            val btnDelete: ImageView = view.findViewById(R.id.btnDeleteNotification)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -209,10 +220,7 @@ class MainActivityNotifications : BaseActivity() {
                 )
             }
 
-            // Цветная полоса слева
             holder.divider.setBackgroundColor(accentColor)
-
-            // Иконка и фон круга
             holder.imageViewIcon.setImageResource(iconRes)
             holder.imageViewIcon.setColorFilter(accentColor)
             holder.iconBackground.setBackgroundColor(Color.argb(30,
@@ -223,12 +231,23 @@ class MainActivityNotifications : BaseActivity() {
             holder.textViewDate.text = dateFormat.format(notification.date)
             holder.textViewCarInfo.text = "🚗 ${notification.carName}"
 
-            val isRead = holder.itemView.context
+            val prefs = holder.itemView.context
                 .getSharedPreferences("my_car_prefs", Context.MODE_PRIVATE)
-                .getBoolean("notification_${notification.id}", false)
+            val isRead = prefs.getBoolean("notification_${notification.id}", false)
             holder.card.setCardBackgroundColor(if (!isRead) bgColor else Color.WHITE)
 
             holder.itemView.setOnClickListener { onItemClick(notification) }
+
+            // Удаление уведомления
+            holder.btnDelete.setOnClickListener {
+                val pos = holder.adapterPosition
+                if (pos != RecyclerView.NO_ID.toInt()) {
+                    // Сохраняем что удалено
+                    prefs.edit().putBoolean("notification_deleted_${notification.id}", true).apply()
+                    notifications.removeAt(pos)
+                    notifyItemRemoved(pos)
+                }
+            }
         }
 
         override fun getItemCount() = notifications.size

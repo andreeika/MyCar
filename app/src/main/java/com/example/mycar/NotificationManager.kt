@@ -69,6 +69,32 @@ class NotificationManager {
                     val refuelingArr = ApiClient.getRefueling(carId)
 
                     // ── СРОЧНЫЕ и РЕКОМЕНДАЦИИ по ТО ──────────────────────────────
+                    val currentMonth = Calendar.getInstance().get(Calendar.MONTH)
+                    // Летние месяцы: май-август (4..7), зимние: ноябрь-февраль (10..11, 0..1)
+                    val isSummer = currentMonth in 4..7
+                    val isWinter = currentMonth in 10..11 || currentMonth in 0..1
+
+                    // Ключевые слова для шин — показываем только в нужный сезон
+                    val winterTireKeywords = listOf("зимн", "шин", "резин", "колес")
+                    val summerTireKeywords = listOf("летн", "шин", "резин", "колес")
+
+                    fun isTireService(name: String): Boolean {
+                        val n = name.lowercase()
+                        return winterTireKeywords.any { n.contains(it) } || summerTireKeywords.any { n.contains(it) }
+                    }
+
+                    fun isWinterTire(name: String) = name.lowercase().contains("зимн")
+                    fun isSummerTire(name: String) = name.lowercase().contains("летн")
+
+                    fun shouldShowTireNotification(serviceName: String): Boolean {
+                        if (!isTireService(serviceName)) return true // не шины — показывать всегда
+                        return when {
+                            isWinterTire(serviceName) -> !isSummer  // зимние шины — не летом
+                            isSummerTire(serviceName) -> !isWinter  // летние шины — не зимой
+                            else -> true // просто "шины/резина" без сезона — показывать
+                        }
+                    }
+
                     for (j in 0 until maintenanceArr.length()) {
                         val m = maintenanceArr.getJSONObject(j)
                         val maintenanceId = m.getInt("maintenance_id")
@@ -78,6 +104,8 @@ class NotificationManager {
                         val nextMileage = if (m.isNull("next_service_mileage")) 0 else m.optInt("next_service_mileage", 0)
 
                         if (nextMileage <= 0) continue
+                        if (!shouldShowTireNotification(serviceName)) continue
+
                         val remaining = nextMileage - currentMileage
 
                         when {
@@ -222,32 +250,48 @@ class NotificationManager {
                     }
 
                     // ── СЕЗОННОЕ ОБСЛУЖИВАНИЕ ──────────────────────────────────────
-                    val month = cal.get(Calendar.MONTH)
-                    val (seasonTitle, seasonMsg) = when {
-                        month in 10..11 || month == 0 -> Pair(
-                            "Подготовка к зиме",
-                            "$carName: Проверьте антифриз, зимнюю резину, аккумулятор и систему обогрева."
+                    // Показываем только в первые 2 недели сезона и только один раз за сезон
+                    val month = cal.get(Calendar.MONTH) // 0=Янв, 11=Дек
+                    val day = cal.get(Calendar.DAY_OF_MONTH)
+
+                    // Определяем текущий сезон и окно показа (первые 14 дней)
+                    data class SeasonInfo(val key: String, val title: String, val msg: String, val active: Boolean)
+
+                    val season = when {
+                        // Подготовка к зиме: октябрь 1-14
+                        month == 9 && day <= 14 -> SeasonInfo(
+                            key = "season_winter_${thisYear}",
+                            title = "Подготовка к зиме",
+                            msg = "$carName: Проверьте антифриз, зимнюю резину, аккумулятор и систему обогрева.",
+                            active = true
                         )
-                        month in 3..4 -> Pair(
-                            "Весеннее обслуживание",
-                            "$carName: Замените зимнюю резину, проверьте тормоза, кондиционер и кузов после зимы."
+                        // Весеннее: апрель 1-14
+                        month == 3 && day <= 14 -> SeasonInfo(
+                            key = "season_spring_${thisYear}",
+                            title = "Весеннее обслуживание",
+                            msg = "$carName: Замените зимнюю резину на летнюю, проверьте тормоза, кондиционер и кузов после зимы.",
+                            active = true
                         )
-                        month in 6..8 -> Pair(
-                            "Летнее обслуживание",
-                            "$carName: Проверьте систему охлаждения, кондиционер и давление в шинах."
+                        // Летнее: июнь 1-14
+                        month == 5 && day <= 14 -> SeasonInfo(
+                            key = "season_summer_${thisYear}",
+                            title = "Летнее обслуживание",
+                            msg = "$carName: Проверьте систему охлаждения, кондиционер и давление в шинах.",
+                            active = true
                         )
-                        else -> Pair(
-                            "Осеннее обслуживание",
-                            "$carName: Подготовьтесь к зиме: проверьте аккумулятор, тормоза и освещение."
-                        )
+                        else -> SeasonInfo("", "", "", active = false)
                     }
-                    info.add(MainActivityNotifications.Notification(
-                        id = carId * 10000 + 401,
-                        type = MainActivityNotifications.NotificationType.INFO,
-                        title = seasonTitle,
-                        message = seasonMsg,
-                        carId = carId, carName = carName, date = Date()
-                    ))
+
+                    if (season.active && !prefs.getBoolean("${season.key}_${carId}", false)) {
+                        info.add(MainActivityNotifications.Notification(
+                            id = carId * 10000 + 401,
+                            type = MainActivityNotifications.NotificationType.INFO,
+                            title = season.title,
+                            message = season.msg,
+                            carId = carId, carName = carName, date = Date()
+                        ))
+                        prefs.edit().putBoolean("${season.key}_${carId}", true).apply()
+                    }
 
                     // ── АВТОМОБИЛЬ НЕ ИСПОЛЬЗОВАЛСЯ >14 ДНЕЙ ──────────────────────
                     if (refuelingArr.length() > 0 && maintenanceArr.length() > 0) {
@@ -282,6 +326,115 @@ class NotificationManager {
                             message = "$carName: Все обслуживания выполнены своевременно. Текущий пробег: $currentMileage км.",
                             carId = carId, carName = carName, date = Date()
                         ))
+                    }
+
+                    // ── ВЫСОКАЯ СТОИМОСТЬ ОДНОЙ ЗАПРАВКИ ──────────────────────────
+                    if (refuelingArr.length() >= 3) {
+                        var totalCost = 0.0
+                        val count = minOf(refuelingArr.length(), 10)
+                        for (r in 0 until count) {
+                            totalCost += refuelingArr.getJSONObject(r).optDouble("total_amount", 0.0)
+                        }
+                        val avgCost = totalCost / count
+                        val lastCost = refuelingArr.getJSONObject(0).optDouble("total_amount", 0.0)
+                        if (lastCost > avgCost * 1.3 && avgCost > 0) {
+                            recommendations.add(MainActivityNotifications.Notification(
+                                id = carId * 10000 + 601,
+                                type = MainActivityNotifications.NotificationType.MAINTENANCE_RECOMMENDATION,
+                                title = "Дорогая заправка",
+                                message = "$carName: Последняя заправка обошлась в ${"%.0f".format(lastCost)} руб., " +
+                                        "что на ${((lastCost / avgCost - 1) * 100).toInt()}% выше среднего (${"%.0f".format(avgCost)} руб.). " +
+                                        "Попробуйте другую АЗС.",
+                                carId = carId, carName = carName, date = Date()
+                            ))
+                        }
+                    }
+
+                    // ── ВЫСОКИЙ ПРОБЕГ — РЕКОМЕНДАЦИЯ ОБЩЕЙ ДИАГНОСТИКИ ───────────
+                    val diagMileages = listOf(50000, 100000, 150000, 200000, 250000)
+                    for (diagMileage in diagMileages) {
+                        val diagKey = "diag_notif_${carId}_$diagMileage"
+                        if (currentMileage >= diagMileage && !prefs.getBoolean(diagKey, false)) {
+                            recommendations.add(MainActivityNotifications.Notification(
+                                id = carId * 10000 + 700 + diagMileage / 1000,
+                                type = MainActivityNotifications.NotificationType.MAINTENANCE_RECOMMENDATION,
+                                title = "Рекомендуется диагностика",
+                                message = "$carName достиг ${diagMileage / 1000} тыс. км. " +
+                                        "Рекомендуем пройти комплексную диагностику: тормоза, подвеска, рулевое управление.",
+                                carId = carId, carName = carName, date = Date()
+                            ))
+                            prefs.edit().putBoolean(diagKey, true).apply()
+                            break
+                        }
+                    }
+
+                    // ── ДАВНО НЕТ ЗАПИСЕЙ ТО (>6 МЕСЯЦЕВ) ────────────────────────
+                    if (maintenanceArr.length() > 0) {
+                        val sdfM = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                        val sdfMAlt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                        var lastMaintenanceDate: Date? = null
+                        for (j in 0 until maintenanceArr.length()) {
+                            val dateStr = maintenanceArr.getJSONObject(j).optString("date", "")
+                            val parsed = runCatching { sdfM.parse(dateStr) }.getOrNull()
+                                ?: runCatching { sdfMAlt.parse(dateStr) }.getOrNull()
+                            if (parsed != null && (lastMaintenanceDate == null || parsed.after(lastMaintenanceDate))) {
+                                lastMaintenanceDate = parsed
+                            }
+                        }
+                        lastMaintenanceDate?.let { last ->
+                            val daysSince = ((Date().time - last.time) / (1000 * 60 * 60 * 24)).toInt()
+                            if (daysSince > 180) {
+                                val noMaintKey = "no_maint_notif_${carId}_${thisYear}"
+                                if (!prefs.getBoolean(noMaintKey, false)) {
+                                    recommendations.add(MainActivityNotifications.Notification(
+                                        id = carId * 10000 + 801,
+                                        type = MainActivityNotifications.NotificationType.MAINTENANCE_RECOMMENDATION,
+                                        title = "Давно не было обслуживания",
+                                        message = "$carName: Последняя запись об обслуживании была более ${daysSince / 30} месяцев назад. " +
+                                                "Рекомендуем провести плановый осмотр.",
+                                        carId = carId, carName = carName, date = Date()
+                                    ))
+                                    prefs.edit().putBoolean(noMaintKey, true).apply()
+                                }
+                            }
+                        }
+                    }
+
+                    // ── СТРАХОВКА / ТО (НАПОМИНАНИЕ ПО ДАТЕ СЛЕДУЮЩЕГО ТО) ────────
+                    for (j in 0 until maintenanceArr.length()) {
+                        val m = maintenanceArr.getJSONObject(j)
+                        val nextDateStr = if (m.isNull("next_service_date")) "" else m.optString("next_service_date", "")
+                        if (nextDateStr.isEmpty()) continue
+                        val serviceName = m.optString("service_type", "Обслуживание")
+                        val sdfDate = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                        val sdfDateAlt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                        val nextDate = runCatching { sdfDate.parse(nextDateStr) }.getOrNull()
+                            ?: runCatching { sdfDateAlt.parse(nextDateStr) }.getOrNull()
+                            ?: continue
+                        val daysUntil = ((nextDate.time - Date().time) / (1000 * 60 * 60 * 24)).toInt()
+                        when {
+                            daysUntil < 0 -> urgent.add(MainActivityNotifications.Notification(
+                                id = carId * 10000 + 900 + j,
+                                type = MainActivityNotifications.NotificationType.URGENT,
+                                title = "Просрочено по дате: $serviceName",
+                                message = "$carName: Плановая дата обслуживания '$serviceName' истекла ${-daysUntil} дней назад.",
+                                carId = carId, carName = carName, date = Date(), actionRequired = true
+                            ))
+                            daysUntil in 0..7 -> urgent.add(MainActivityNotifications.Notification(
+                                id = carId * 10000 + 910 + j,
+                                type = MainActivityNotifications.NotificationType.URGENT,
+                                title = "Через $daysUntil дней: $serviceName",
+                                message = "$carName: Плановое обслуживание '$serviceName' запланировано через $daysUntil дней.",
+                                carId = carId, carName = carName, date = Date(), actionRequired = true
+                            ))
+                            daysUntil in 8..30 -> recommendations.add(MainActivityNotifications.Notification(
+                                id = carId * 10000 + 920 + j,
+                                type = MainActivityNotifications.NotificationType.MAINTENANCE_RECOMMENDATION,
+                                title = "Через $daysUntil дней: $serviceName",
+                                message = "$carName: Плановое обслуживание '$serviceName' запланировано через $daysUntil дней.",
+                                carId = carId, carName = carName, date = Date()
+                            ))
+                        }
                     }
                 }
 
